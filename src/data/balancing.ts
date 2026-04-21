@@ -5,46 +5,74 @@
  */
 
 export const BALANCING = {
-  // ─── Spawning ────────────────────────────────────────────────────────────
-  /** Time between spawns at game start, in milliseconds */
-  initialSpawnInterval: 2000,
+  // ─── Board Layout ────────────────────────────────────────────────────────
+  /** Number of bubble columns */
+  boardCols: 5,
+  /** Number of bubble rows */
+  boardRows: 5,
+  /** Bubble diameter in pixels */
+  bubbleSize: 72,
+  /** Gap between bubbles in pixels */
+  gridGap: 8,
 
-  /** Minimum spawn interval — difficulty won't go below this */
-  minSpawnInterval: 500,
+  // ─── Pop Feedback Timings ────────────────────────────────────────────────
+  /** Scale punch tween duration (ms) — Back.easeIn */
+  popPunchDuration: 80,
+  /** Ring ripple alpha fade duration (ms) */
+  rippleDuration: 300,
+  /** Cell colour flash duration (ms) */
+  flashDuration: 60,
+  /** navigator.vibrate duration for haptic (ms) */
+  hapticMs: 12,
 
-  // ─── Difficulty ───────────────────────────────────────────────────────────
+  // ─── Combo System ────────────────────────────────────────────────────────
+  /** Pause in ms before combo multiplier resets to 1x */
+  comboResetMs: 2000,
+
+  // ─── Scoring ─────────────────────────────────────────────────────────────
+  /** Base points per popped bubble */
+  pointsPerPop: 10,
+
+  // ─── Combo Multiplier ────────────────────────────────────────────────────
   /**
-   * Time in milliseconds over which difficulty ramps from 1.0 to maxDifficultyMultiplier.
-   * Default: 60 seconds
+   * Consecutive-pop streak thresholds that unlock each multiplier tier.
+   * Index-aligned with comboMultipliers: streak >= threshold[i] → multipliers[i].
    */
-  difficultyRampTime: 60_000,
+  comboStreakThresholds: [0, 5, 10, 15] as readonly number[],
+  /** Multiplier values for each streak tier (1x / 2x / 3x / 5x) */
+  comboMultipliers: [1, 2, 3, 5] as readonly number[],
 
-  /** Maximum difficulty multiplier reached after difficultyRampTime has elapsed */
-  maxDifficultyMultiplier: 3.0,
+  // ─── Refill Animation ────────────────────────────────────────────────────
+  /** Stagger delay per (row + col) step during board refill (ms) */
+  refillStaggerMs: 30,
 
-  // ─── Scoring ──────────────────────────────────────────────────────────────
-  /** Points awarded per scoring event (e.g. dodging an obstacle, tapping a target) */
-  pointsPerEvent: 10,
+  // ─── Pattern Mode ────────────────────────────────────────────────────────
+  /** How long the target pattern is visible before hiding (ms) */
+  patternShowDuration: 2000,
+  /** Freeze duration on wrong bubble tap (ms) */
+  patternPenaltyMs: 500,
 
-  /** Score multiplier applied on consecutive events without failure */
-  comboMultiplier: 1.5,
+  // ─── Rhythm Mode ─────────────────────────────────────────────────────────
+  /** Fire the visual cue this many ms before the actual beat */
+  visualLeadMs: 50,
+  /** Default BPM for rhythm mode */
+  rhythmBpm: 120,
 
-  /** Number of consecutive events required to activate the combo multiplier */
-  comboThreshold: 5,
-
-  // ─── Player ───────────────────────────────────────────────────────────────
-  /** Number of lives the player starts with */
-  startingLives: 3,
-
-  /** Player movement speed in pixels/second */
-  playerSpeed: 300,
+  // ─── Accessibility ───────────────────────────────────────────────────────
+  /** WCAG 2.1 s2.3.1 — minimum ms between flashes (caps at <3/sec) */
+  minFlashIntervalMs: 333,
 
   // ─── UI Timings ───────────────────────────────────────────────────────────
   /** Duration of scene transition fades, in milliseconds */
   sceneFadeDuration: 300,
-
   /** Delay before transitioning from BootScene to PreloadScene */
-  bootDelay: 100
+  bootDelay: 100,
+
+  // ─── DifficultySystem (kept for system compatibility, unused in Poppy) ────
+  initialSpawnInterval: 2000,
+  minSpawnInterval: 500,
+  difficultyRampTime: 60_000,
+  maxDifficultyMultiplier: 3.0
 } as const
 
 export type Balancing = typeof BALANCING
