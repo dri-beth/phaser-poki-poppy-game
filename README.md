@@ -1,130 +1,128 @@
-# Phaser 3 + Poki Starter Template
+# Poppy Game — Game Design Document
 
-A production-ready starter framework for casual browser games built with **Phaser 3**, **TypeScript**, and **Vite**, with **Poki SDK** integration built in from day one.
+**Stack:** Phaser 3 · TypeScript · Vite · Poki SDK
+**Template base:** tatosgames/phaser-poki-starter
+**Target platform:** Browser (desktop + mobile) via Poki
+**Genre:** Casual / Fidget / Pop simulation
+**Monetization:** Poki ad-breaks (commercial + rewarded)
 
-## Quick Start (under 5 minutes)
+---
 
-```bash
-# 1. Clone or download this template
-git clone <your-repo-url> my-game
-cd my-game
+## 1. Concept
 
-# 2. Install dependencies
-npm install
+A fidget-toy pop game. Bubbles on a virtual board respond to taps with multi-sensory feedback: visual pop, sound, particles, haptic. Four game modes from pure zen to rhythm challenges.
 
-# 3. Start the dev server
-npm run dev
-```
+Core interaction: TAP BUBBLE → POP FX (visual + audio + particle + haptic) → COUNTER +1 → mode logic
 
-Open `http://localhost:3000` — you'll see the full scene flow: Boot → Preload → Menu → Game → Result.
+---
 
-## Build for Production
+## 2. Game Modes
 
-```bash
-npm run build
-```
+### Zen Mode
+No timer, no rules. Pop everything at your own pace. Board refills when all bubbles are popped.
 
-Output goes to `dist/`. Upload the entire `dist/` folder to Poki or any static host.
+### Pattern Mode
+A target pattern is shown for 2 seconds, then hidden. Pop the correct bubbles from memory. Complexity increases each round. Mistake = wrong bubble turns red, 500 ms penalty freeze.
 
-## Project Structure
+### Rhythm Mode
+Bubbles light up in sync with a beat. Pop them in time to the music. Uses AudioContext.currentTime for sub-frame timing accuracy. Visual cue fires VISUAL_LEAD_MS before the beat so it arrives exactly on time.
 
-```
-/src
-  /core
-    Config.ts           — Typed game config interface and default values
-    ScaleManager.ts     — Responsive canvas scaling (portrait-first, 9:16)
-    AudioManager.ts     — Global mute/unmute, browser audio unlock, SFX/music control
-    SaveManager.ts      — localStorage wrapper with typed save/load and silent error handling
-  /scenes
-    BootScene.ts        — Initializes core services, detects environment, routes to PreloadScene
-    PreloadScene.ts     — Loads all assets with progress bar; plugin fires gameLoadingFinished
-    MenuScene.ts        — Title screen with Play button and mute toggle
-    GameScene.ts        — Placeholder gameplay loop with all systems wired up
-    ResultScene.ts      — Score display, restart + menu buttons; rewarded ad hook placeholder
-  /components
-    UIButton.ts         — Reusable Phaser button with hover/press states and keyboard support
-    ProgressBar.ts      — Reusable loading progress bar
-  /systems
-    ScoreSystem.ts      — Add/reset/get score; high score persisted via SaveManager
-    DifficultySystem.ts — Time-based difficulty multiplier driven by balancing.ts
-    SpawnSystem.ts      — Timed spawn controller integrated with the game loop
-  /data
-    gameConfig.ts       — Single source of truth: dimensions, colors, debug flags
-    balancing.ts        — All tunable numbers: spawn rates, difficulty ramp, points
-  /utils
-    helpers.ts          — Shared utility functions (random, clamp, format, etc.)
-  main.ts               — Phaser game bootstrap with Poki plugin config
-/public
-  /assets               — Game assets (add your images, audio, spritesheets here)
-index.html              — Entry HTML with correct mobile viewport meta tags
-```
+### Daily Mode
+One unique 5x5 board per day (seeded by date). Poki leaderboard. Best time wins.
 
-## Poki SDK Integration
+---
 
-The `PokiPlugin` is registered globally in `main.ts`. It automatically:
+## 3. Pop Feedback System
 
-- Fires `gameLoadingFinished` when `PreloadScene` finishes loading
-- Fires `gameplayStart` when `GameScene` starts
-- Fires `gameplayStop` when `GameScene` stops
-- Disables input and audio during ad breaks
+All feedback channels must fire within < 50 ms of the tap event.
 
-### Rewarded Ads
+- **Visual:** Scale punch tween (80 ms, Back.easeIn) + ring ripple (alpha fade, 300 ms) + cell colour flash (60 ms)
+- **Audio:** AudioContext.createBufferSource() fired directly — not Phaser Sound — for minimum latency. Pitch randomized +-20%.
+- **Particles:** 8-particle burst, pooled, explode() on tap
+- **Haptic:** navigator.vibrate(12) on mobile — 12 ms, subtle
 
-In `ResultScene.ts`, look for the `// TODO: rewarded break hook` comment and add:
+---
 
-```ts
-const poki = this.plugins.get('poki') as PokiPlugin
-poki.rewardedBreak().then((rewarded) => {
-  if (rewarded) {
-    // Give the player their reward
-  }
-})
-```
+## 4. Board System
 
-### Commercial Breaks
+Default: 5x5 grid = 25 bubbles. Larger boards (6x6, 7x7) unlocked in later themes.
 
-`autoCommercialBreak: true` is set in the plugin config, so Poki will automatically trigger commercial breaks between gameplay sessions.
+Refill animation (Zen mode): staggered pop-in with delay = (row + col) * 30 ms.
 
-## Making Your Game
+Bubble states: idle | highlighted | popped | refilling
 
-Replace the placeholder gameplay in `GameScene.ts` with your actual game logic. The systems are already wired up:
+---
 
-| System | What to replace |
-|--------|----------------|
-| `SpawnSystem` | Change spawn callbacks to create your actual game objects |
-| `ScoreSystem` | Call `scoreSystem.add(points)` when the player earns points |
-| `DifficultySystem` | Tune values in `balancing.ts` to control ramp speed |
-| `GameScene` | Add your player, enemies, physics groups, collision handlers |
+## 5. Themes (6, hot-swap)
 
-## Configuration
+| # | Theme | Palette | Sound |
+|---|-------|---------|-------|
+| 1 | Classic | Pastel pink/blue | Soft pop |
+| 2 | Neon | Cyan/magenta | Synth blip |
+| 3 | Candy | Orange/yellow | Candy crunch |
+| 4 | Ocean | Teal/white | Water bubble |
+| 5 | Night | Purple/dark | Low thud |
+| 6 | Minimal | Grey/white | Click |
 
-All tunable values are in two files:
+All themes loaded in PreloadScene for instant hot-swap — no reload.
 
-- **`src/data/gameConfig.ts`** — title, dimensions, background color, debug flag
-- **`src/data/balancing.ts`** — spawn intervals, difficulty ramp time, points per event
+---
 
-## Type Checking
+## 6. Scoring
 
-```bash
-npm run typecheck
-```
+| Mode | Formula |
+|------|---------|
+| Zen | Total pops x combo multiplier |
+| Pattern | Accuracy % x speed bonus |
+| Rhythm | Perfect/Good/Miss x streak multiplier |
+| Daily | Time to clear board (lower = better) |
 
-## Adding Assets
+Combo multiplier (Zen + Rhythm): 1x -> 2x -> 3x -> 5x. Resets after 2 s pause.
 
-Place images, audio, and spritesheets in `/public/assets/`. Load them in `PreloadScene.ts`:
+---
 
-```ts
-this.load.image('player', 'assets/player.png')
-this.load.audio('bgm', 'assets/bgm.mp3')
-```
+## 7. Accessibility
 
-## Mobile Notes
+- **Reduced motion:** skips scale punch and ring ripple, colour flash only
+- **Colour-blind:** shape + pattern fills instead of colour-only differentiation
+- **WCAG 2.1 s2.3.1:** flashes capped at < 3 per second (MIN_FLASH_INTERVAL_MS = 333)
 
-- Canvas is portrait-first (480×854, 9:16)
-- All buttons have minimum 44×44px hit areas
-- Touch events are handled by Phaser's input system
-- `user-scalable=no` prevents accidental zoom on double-tap
+---
 
-## License
+## 8. Performance Targets
 
-MIT — use this template for any project, commercial or personal.
+| Metric | Target |
+|--------|--------|
+| FPS | 60 desktop / 30 mobile |
+| Tap-to-feedback latency | < 50 ms |
+| Audio latency (WebAudio) | < 10 ms |
+| Particle count per pop | 8 (pooled) |
+| JS bundle gzip | < 250 KB |
+| Total assets | < 4 MB |
+
+---
+
+## 9. Poki SDK Integration
+
+- gameplayStart() on mode session begin
+- gameplayStop() + commercialBreak() between board clears
+- rewardedBreak() to unlock theme early
+
+---
+
+## 10. Development Roadmap
+
+| Milestone | Deliverable |
+|-----------|------------|
+| M1 | Board render + tap detection + pop FX |
+| M2 | Zen Mode + refill animation |
+| M3 | 6 themes + hot-swap |
+| M4 | Pattern Mode |
+| M5 | BeatScheduler + Rhythm Mode |
+| M6 | Daily Mode + Poki leaderboard |
+| M7 | Accessibility pass (reduced motion, colour-blind, WCAG flash) |
+| M8 | Poki SDK + polish + review submission |
+
+---
+
+*GDD v1.0 — tatosgames/poppy-game*
