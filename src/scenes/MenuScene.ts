@@ -71,9 +71,8 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    // Tagline — replace with your game's actual tagline
     this.add
-      .text(CX, CY - 100, 'Tap to survive', {
+      .text(CX, CY - 100, 'Pop every bubble', {
         fontSize: '20px',
         fontFamily: 'Arial, sans-serif',
         color: '#aaaacc',

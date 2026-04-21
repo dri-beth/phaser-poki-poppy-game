@@ -72,19 +72,24 @@ export class ResultScene extends Phaser.Scene {
 
   private createBackground(): void {
     const bg = this.add.graphics()
-    bg.fillGradientStyle(0x1a1a2e, 0x1a1a2e, 0x16213e, 0x16213e, 1)
+    bg.fillStyle(0xfce4ec, 1)
     bg.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height)
+    // Soft decorative circles
+    bg.fillStyle(0xf48fb1, 0.12)
+    bg.fillCircle(60, 200, 160)
+    bg.fillStyle(0x90caf9, 0.1)
+    bg.fillCircle(GAME_CONFIG.width - 40, GAME_CONFIG.height - 150, 200)
   }
 
   private createScoreDisplay(): void {
     const { score, highScore, isNewHighScore } = this.resultData
 
-    // "Game Over" header
+    // Session header
     this.add
-      .text(CX, CY - 210, 'GAME OVER', {
-        fontSize: '42px',
+      .text(CX, CY - 210, 'SESSION OVER', {
+        fontSize: '38px',
         fontFamily: 'Arial, sans-serif',
-        color: '#e74c3c',
+        color: '#e91e63',
         fontStyle: 'bold',
         resolution: 2
       })
@@ -93,9 +98,9 @@ export class ResultScene extends Phaser.Scene {
     // Score card background
     const cardH = 160
     const card = this.add.graphics()
-    card.fillStyle(0x16213e, 0.8)
+    card.fillStyle(0xffffff, 0.7)
     card.fillRoundedRect(CX - 160, CY - 165, 320, cardH, 16)
-    card.lineStyle(2, 0x4a90d9, 0.4)
+    card.lineStyle(2, 0xe91e63, 0.3)
     card.strokeRoundedRect(CX - 160, CY - 165, 320, cardH, 16)
 
     // Score label
@@ -103,13 +108,13 @@ export class ResultScene extends Phaser.Scene {
       .text(CX, CY - 140, 'Score', {
         fontSize: '16px',
         fontFamily: 'Arial, sans-serif',
-        color: '#aaaacc',
+        color: '#9e7c6e',
         resolution: 2
       })
       .setOrigin(0.5)
 
     // Score value
-    const scoreColor = isNewHighScore ? '#f1c40f' : '#ffffff'
+    const scoreColor = isNewHighScore ? '#e91e63' : '#5d4037'
     const scoreDisplay = this.add
       .text(CX, CY - 110, formatScore(score), {
         fontSize: '52px',
@@ -141,13 +146,12 @@ export class ResultScene extends Phaser.Scene {
         .text(CX, CY - 55, '🏆 NEW BEST!', {
           fontSize: '20px',
           fontFamily: 'Arial, sans-serif',
-          color: '#f1c40f',
+          color: '#e91e63',
           fontStyle: 'bold',
           resolution: 2
         })
         .setOrigin(0.5)
 
-      // Pulse animation
       this.tweens.add({
         targets: banner,
         scaleX: 1.1,
@@ -162,7 +166,7 @@ export class ResultScene extends Phaser.Scene {
         .text(CX, CY - 55, `Best: ${formatScore(highScore)}`, {
           fontSize: '16px',
           fontFamily: 'Arial, sans-serif',
-          color: '#aaaacc',
+          color: '#9e7c6e',
           resolution: 2
         })
         .setOrigin(0.5)

@@ -119,40 +119,36 @@ export class PreloadScene extends Phaser.Scene {
   //   this.load.audio('bgm', 'assets/bgm.mp3')
 
   private loadAssets(): void {
-    // ── Placeholder textures (generated at runtime — no files needed) ────────
+    // ── Bubble texture (72×72, white circle + inner highlight ring) ──────────
+    // Tinted per-theme at runtime; white base preserves colour fidelity.
+    const S = 72
+    const R = S / 2
+    const bubbleGfx = this.make.graphics({ x: 0, y: 0 }, false)
+    bubbleGfx.fillStyle(0xffffff, 1)
+    bubbleGfx.fillCircle(R, R, R - 2)
+    // Soft inner highlight near top-left
+    bubbleGfx.fillStyle(0xffffff, 0.35)
+    bubbleGfx.fillCircle(R - 14, R - 14, 14)
+    bubbleGfx.generateTexture('bubble', S, S)
+    bubbleGfx.destroy()
 
-    // Player — blue rounded square
-    const playerGfx = this.make.graphics({ x: 0, y: 0 }, false)
-    playerGfx.fillStyle(0x4a90d9)
-    playerGfx.fillRoundedRect(0, 0, 48, 48, 10)
-    playerGfx.generateTexture('player', 48, 48)
-    playerGfx.destroy()
+    // ── Bubble ring (ripple effect overlay) ──────────────────────────────────
+    const ringGfx = this.make.graphics({ x: 0, y: 0 }, false)
+    ringGfx.lineStyle(3, 0xffffff, 1)
+    ringGfx.strokeCircle(R, R, R - 4)
+    ringGfx.generateTexture('bubble_ring', S, S)
+    ringGfx.destroy()
 
-    // Enemy — red rounded square
-    const enemyGfx = this.make.graphics({ x: 0, y: 0 }, false)
-    enemyGfx.fillStyle(0xe74c3c)
-    enemyGfx.fillRoundedRect(0, 0, 40, 40, 8)
-    enemyGfx.generateTexture('enemy', 40, 40)
-    enemyGfx.destroy()
-
-    // Coin / collectible — gold circle
-    const coinGfx = this.make.graphics({ x: 0, y: 0 }, false)
-    coinGfx.fillStyle(0xf1c40f)
-    coinGfx.fillCircle(16, 16, 16)
-    coinGfx.generateTexture('coin', 32, 32)
-    coinGfx.destroy()
-
-    // Particle — small white dot (used for effects)
+    // ── Particle — small white dot for pop burst ──────────────────────────────
     const particleGfx = this.make.graphics({ x: 0, y: 0 }, false)
-    particleGfx.fillStyle(0xffffff, 0.8)
+    particleGfx.fillStyle(0xffffff, 0.9)
     particleGfx.fillCircle(4, 4, 4)
     particleGfx.generateTexture('particle', 8, 8)
     particleGfx.destroy()
 
     // TODO: Load real audio assets here once they exist
     // this.load.audio('bgm', 'assets/bgm.mp3')
-    // this.load.audio('sfx_score', 'assets/sfx_score.wav')
-    // this.load.audio('sfx_hurt', 'assets/sfx_hurt.wav')
+    // this.load.audio('sfx_pop', 'assets/sfx_pop.wav')
     // this.load.audio('sfx_button', 'assets/sfx_button.wav')
   }
 }
