@@ -2,12 +2,15 @@
 
 > Written for AI coding agents. Treat the codebase as the source of truth.
 > Human-facing design notes live in README.md, but code wins on conflicts.
+> `FruitPop_GDD_v2.md` is the target gameplay design. The current codebase does not yet implement that design.
 
 ---
 
 ## 1. Project Overview
 
-**What this repo is:** a Phaser 3 + TypeScript + Vite Poki browser game called **Poppy**. The current implementation is a bubble-pop board game with combo scoring, board refills, Poki ad hooks, persisted mute/high score, and responsive portrait scaling.
+**What this repo is:** a Phaser 3 + TypeScript + Vite Poki browser game prototype. The current implementation is a bubble-pop board game with combo scoring, board refills, Poki ad hooks, persisted mute/high score, and responsive portrait scaling.
+
+**Target design:** `FruitPop_GDD_v2.md` defines the next gameplay direction. That design is a single-screen fruit ripeness tap game with timer, dirt meter, perfect pops, grades, and win/lose states.
 
 **Target platform:** Poki web games, portrait-first, base canvas 480x854.
 
@@ -30,6 +33,17 @@ All four are devDependencies.
 - `npm run preview` -> `vite preview`
 
 **Entry point:** `index.html` -> `src/main.ts`
+
+### FruitPop Target Design
+
+When implementing the GDD, the current starter systems are only partial matches.
+
+- `GameScene` must eventually become the fruit ripeness board, not the current bubble combo game.
+- `PreloadScene` should load fruit, splatter, particle, dirt bar, and audio assets instead of generating bubble placeholder textures.
+- `MenuScene` should become the Fruit Pop start screen with animated fruit background and best-score display.
+- `ResultScene` should show win/lose-specific end states, grades, and replay flow.
+- A `CountdownScene` or countdown overlay will likely be needed for the GDD's 3-2-1-GO intro.
+- `ComboSystem`, `DifficultySystem`, and `SpawnSystem` are not the FruitPop core loop; treat them as removable or replaceable if they no longer fit the target design.
 
 ---
 
@@ -195,15 +209,18 @@ scene: [BootScene, PreloadScene, MenuScene, GameScene, ResultScene]
 
 | File | What to change |
 |---|---|
-| `src/scenes/GameScene.ts` | Replace the gameplay implementation if you are changing the board rules, bubble states, combo flow, scoring, board clear/refill behavior, HUD, or the ResultScene handoff. The current methods to understand are `createBackground()`, `createParticleEmitter()`, `createBoard()`, `onBubbleTap()`, `playPopFX()`, `onBoardCleared()`, `refillBoard()`, `createHUD()`, `updateHUD()`, and `exitToMenu()`. |
-| `src/scenes/PreloadScene.ts` | Replace `loadAssets()` if you are adding real asset files. Keep the loading UI and the transition to `MenuScene`. |
+| `src/scenes/GameScene.ts` | Replace the gameplay implementation if you are moving toward FruitPop. The current methods to understand are `createBackground()`, `createParticleEmitter()`, `createBoard()`, `onBubbleTap()`, `playPopFX()`, `onBoardCleared()`, `refillBoard()`, `createHUD()`, `updateHUD()`, and `exitToMenu()`. FruitPop will need a fruit ripeness board, dirt meter, timer, and win/lose logic instead of the current bubble combo loop. |
+| `src/scenes/PreloadScene.ts` | Replace `loadAssets()` if you are adding real FruitPop asset files. Keep the loading UI and the transition to `MenuScene`. |
+| `src/scenes/MenuScene.ts` | Replace if you are implementing the FruitPop menu screen. The GDD wants animated fruit background, title, tap-to-start, and best score. |
+| `src/scenes/ResultScene.ts` | Replace if you are implementing the FruitPop win/lose result states, grades, and replay flow. |
+| `src/scenes/CountdownScene.ts` | Add if you implement the GDD countdown as a dedicated scene instead of an overlay. |
 
 ### 4.2 Files to tune
 
 | File | What to change |
 |---|---|
-| `src/data/balancing.ts` | Board size, bubble size, pop timings, combo thresholds/multipliers, refill timings, scene fades, boot delay, and the dormant difficulty constants. |
-| `src/data/gameConfig.ts` | Title, width, height, background color, debug flag, version, and target FPS. If you rebrand, update `index.html`'s `<title>` too. |
+| `src/data/balancing.ts` | Board size, bubble size, pop timings, combo thresholds/multipliers, refill timings, scene fades, boot delay, and the dormant difficulty constants. For FruitPop, this file will need ripeness thresholds, dirt penalty, timer start, and grade-related values instead. |
+| `src/data/gameConfig.ts` | Title, width, height, background color, debug flag, version, and target FPS. If you rebrand, update `index.html`'s `<title>` too. FruitPop uses the title `Fruit Pop` in the GDD. |
 
 ### 4.3 Files to extend
 
@@ -225,6 +242,16 @@ scene: [BootScene, PreloadScene, MenuScene, GameScene, ResultScene]
 | `src/components/ProgressBar.ts` | Stable reusable component. |
 | `src/main.ts` | Poki plugin data and scene order are fragile. |
 | `index.html` | Required viewport and `touch-action` behavior. |
+
+### 4.5 FruitPop migration path
+
+When aligning the codebase with `FruitPop_GDD_v2.md`, prioritize the following:
+
+1. Replace the current bubble grid loop in `GameScene` with fruit ripeness states, dirt meter, timer, and win/lose handling.
+2. Replace placeholder texture generation in `PreloadScene` with fruit, splatter, particle, dirt meter, and audio asset loads.
+3. Rewrite `MenuScene` and `ResultScene` to match the GDD menu, countdown entry point, and end-state presentation.
+4. Update `BALANCING` and `GAME_CONFIG` to use FruitPop timing, scoring, and title values.
+5. Remove or repurpose `ComboSystem`, `DifficultySystem`, and `SpawnSystem` if the FruitPop implementation does not need them.
 
 ---
 
@@ -407,6 +434,7 @@ Notes:
 
 - There is no `public/assets/` directory in the repo today.
 - The existing game works with generated placeholder textures, so if you replace them, update the gameplay code that depends on those keys.
+- The FruitPop GDD systems are not implemented yet in this prototype. Treat the GDD section as target behavior, not current code.
 
 ---
 
@@ -473,3 +501,16 @@ Run these after any change that touches gameplay, assets, scene flow, storage, o
 - Build exits with code 0.
 - `dist/` contains the built HTML and bundled assets.
 - Phaser is split into its own chunk by Vite.
+
+### FruitPop target checks
+
+These are not satisfied by the current prototype yet, but they should be tested once the GDD is implemented:
+
+- Fruit grid spawns in a 5x3 layout by default.
+- Fruits ripen through Green -> Yellow -> Red -> Overripe.
+- Perfect taps score only on Red fruit.
+- Overripe taps raise dirt meter by 20.
+- Timer counts down from 35 seconds.
+- Win triggers when all fruits are cleared.
+- Lose triggers on timer expiry or dirt meter 100.
+- Result screen shows win/lose state and grade.

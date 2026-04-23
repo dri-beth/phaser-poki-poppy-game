@@ -1,128 +1,309 @@
-# Poppy Game — Game Design Document
+# Fruit Pop
 
-**Stack:** Phaser 3 · TypeScript · Vite · Poki SDK
-**Template base:** tatosgames/phaser-poki-starter
-**Target platform:** Browser (desktop + mobile) via Poki
-**Genre:** Casual / Fidget / Pop simulation
-**Monetization:** Poki ad-breaks (commercial + rewarded)
+**Stack:** Phaser 3, TypeScript, Vite, Poki SDK
+**Target platform:** Web, desktop + mobile, portrait-first
+**Session length:** about 60 to 90 seconds
 
----
+Fruit Pop is a single-screen tap game about timing. A grid of fruits slowly ripens, and the player must pop them at the right moment before the kitchen fills with dirt and the round ends.
 
-## 1. Concept
+The core tension is simple: pop too early and you waste potential, pop too late and the fruit goes rotten. Good timing gives satisfying feedback, score, and momentum.
 
-A fidget-toy pop game. Bubbles on a virtual board respond to taps with multi-sensory feedback: visual pop, sound, particles, haptic. Four game modes from pure zen to rhythm challenges.
+## Core Loop
 
-Core interaction: TAP BUBBLE → POP FX (visual + audio + particle + haptic) → COUNTER +1 → mode logic
+1. Spawn a fruit grid.
+2. Fruits automatically ripen over time.
+3. The player taps a fruit.
+4. The result depends on ripeness:
+   - too early: no reward
+   - perfect: big reward
+   - overripe: dirt penalty
+5. Clear all fruit to win.
+6. Reach the timer limit or dirt limit to lose.
 
----
+## Controls
 
-## 2. Game Modes
+| Input | Behavior |
+|---|---|
+| Tap / Click | Pop the targeted fruit |
+| No drag, no swipe, no hold | The game is tap-only |
 
-### Zen Mode
-No timer, no rules. Pop everything at your own pace. Board refills when all bubbles are popped.
+Hitboxes should feel generous. The design target is an interactive area about 1.3x the visible fruit size.
 
-### Pattern Mode
-A target pattern is shown for 2 seconds, then hidden. Pop the correct bubbles from memory. Complexity increases each round. Mistake = wrong bubble turns red, 500 ms penalty freeze.
+## Game States
 
-### Rhythm Mode
-Bubbles light up in sync with a beat. Pop them in time to the music. Uses AudioContext.currentTime for sub-frame timing accuracy. Visual cue fires VISUAL_LEAD_MS before the beat so it arrives exactly on time.
+| State | Purpose |
+|---|---|
+| Menu | Animated fruit grid, logo, start prompt, best score |
+| Countdown | 3-2-1-GO intro before active play |
+| Game | Active ripening, tapping, dirt management, timer |
+| Result: WIN | Clear-state celebration, score breakdown, replay |
+| Result: LOSE | Failure state, reason text, retry |
 
-### Daily Mode
-One unique 5x5 board per day (seeded by date). Poki leaderboard. Best time wins.
+## Entities
 
----
+### Fruit Object
 
-## 3. Pop Feedback System
+```js
+{
+  id,
+  x,
+  y,
+  state,        // 0 = Green, 1 = Yellow, 2 = Red, 3 = Overripe
+  stateTimer,
+  isActive,
+  wobblePhase,
+  pulseSpeed,
+  popCharge
+}
+```
 
-All feedback channels must fire within < 50 ms of the tap event.
+### Runtime Game State
 
-- **Visual:** Scale punch tween (80 ms, Back.easeIn) + ring ripple (alpha fade, 300 ms) + cell colour flash (60 ms)
-- **Audio:** AudioContext.createBufferSource() fired directly — not Phaser Sound — for minimum latency. Pitch randomized +-20%.
-- **Particles:** 8-particle burst, pooled, explode() on tap
-- **Haptic:** navigator.vibrate(12) on mobile — 12 ms, subtle
+```js
+{
+  timer,
+  dirtMeter,
+  remainingFruits,
+  perfectPops,
+  totalPops,
+  comboChain,
+  roundSeed
+}
+```
 
----
+### Visual Pool Objects
 
-## 4. Board System
+```js
+// Splatter decal
+{
+  x, y, scale, rotation, alpha, lifetime, color, isActive
+}
 
-Default: 5x5 grid = 25 bubbles. Larger boards (6x6, 7x7) unlocked in later themes.
+// Pop particle
+{
+  x, y, velocityX, velocityY, alpha, scale, lifetime, isActive
+}
 
-Refill animation (Zen mode): staggered pop-in with delay = (row + col) * 30 ms.
+// Score popup text
+{
+  x, y, text, velocityY, alpha, lifetime, isActive
+}
+```
 
-Bubble states: idle | highlighted | popped | refilling
+## Mechanics
 
----
+### Ripeness System
 
-## 5. Themes (6, hot-swap)
+Each fruit advances through four states:
 
-| # | Theme | Palette | Sound |
-|---|-------|---------|-------|
-| 1 | Classic | Pastel pink/blue | Soft pop |
-| 2 | Neon | Cyan/magenta | Synth blip |
-| 3 | Candy | Orange/yellow | Candy crunch |
-| 4 | Ocean | Teal/white | Water bubble |
-| 5 | Night | Purple/dark | Low thud |
-| 6 | Minimal | Grey/white | Click |
+| State | Name | Color | Time Window | Visual |
+|---|---|---|---|---|
+| 0 | Green | `#4CAF50` | 0 to 2500 ms | Small, firm |
+| 1 | Yellow | `#FFC107` | 2500 to 5000 ms | Medium, slight wobble |
+| 2 | Red | `#E53935` | 5000 to 7500 ms | Large, glowing, pulsing |
+| 3 | Overripe | `#4E342E` | 7500 ms+ | Shrinking, dripping |
 
-All themes loaded in PreloadScene for instant hot-swap — no reload.
+Each fruit should have a small random timing variance so the board does not ripen uniformly.
 
----
+### Tap Outcomes
 
-## 6. Scoring
+| State at tap | Outcome | Dirt Change | Score | Feedback |
+|---|---|---|---|---|
+| Green | Remove fruit | No change | 0 | Small green puff |
+| Yellow | Remove fruit | No change | 0 | Medium yellow burst |
+| Red | Remove fruit | No change | +1 perfect | Large explosion and screen flash |
+| Overripe | Remove fruit | +20 dirt | 0 | Brown splatter and shake |
 
-| Mode | Formula |
-|------|---------|
-| Zen | Total pops x combo multiplier |
-| Pattern | Accuracy % x speed bonus |
-| Rhythm | Perfect/Good/Miss x streak multiplier |
-| Daily | Time to clear board (lower = better) |
+There is no "miss" state. Every tap removes the fruit. The cost of bad timing is dirt, not failed input.
 
-Combo multiplier (Zen + Rhythm): 1x -> 2x -> 3x -> 5x. Resets after 2 s pause.
+### Dirt Meter
 
----
+- Starts at 0
+- Increases by 20 per overripe pop
+- Fails at 100
+- Does not decay
+- Should read clearly in the HUD as a grime or sludge bar
 
-## 7. Accessibility
+### Timer
 
-- **Reduced motion:** skips scale punch and ring ripple, colour flash only
-- **Colour-blind:** shape + pattern fills instead of colour-only differentiation
-- **WCAG 2.1 s2.3.1:** flashes capped at < 3 per second (MIN_FLASH_INTERVAL_MS = 333)
+- Starts at 35 seconds
+- Counts down in real time
+- No pause once active
+- Should turn urgent in the last 10 seconds
+- Should become visually intense in the last 5 seconds
 
----
+### Win / Lose Conditions
 
-## 8. Performance Targets
+| Condition | Result |
+|---|---|
+| All fruits removed | Win |
+| Timer reaches 0 | Lose |
+| Dirt meter reaches 100 | Lose |
 
-| Metric | Target |
-|--------|--------|
-| FPS | 60 desktop / 30 mobile |
-| Tap-to-feedback latency | < 50 ms |
-| Audio latency (WebAudio) | < 10 ms |
-| Particle count per pop | 8 (pooled) |
-| JS bundle gzip | < 250 KB |
-| Total assets | < 4 MB |
+## Scoring
 
----
+### Perfect Pop Count
 
-## 9. Poki SDK Integration
+Every Red-state pop increments `perfectPops`.
 
-- gameplayStart() on mode session begin
-- gameplayStop() + commercialBreak() between board clears
-- rewardedBreak() to unlock theme early
+### End Screen Grades
 
----
+| Perfect Pops | Grade | Label |
+|---|---|---|
+| All fruits at Red | S | MASTER CHEF |
+| 70% or more | A | SKILLED PICKER |
+| 50% or more | B | DECENT HARVEST |
+| 30% or more | C | RUSHED JOB |
+| Below 30% | D | PANIC FARMER |
 
-## 10. Development Roadmap
+The grade is display-only. It exists to give players a replay goal.
 
-| Milestone | Deliverable |
-|-----------|------------|
-| M1 | Board render + tap detection + pop FX |
-| M2 | Zen Mode + refill animation |
-| M3 | 6 themes + hot-swap |
-| M4 | Pattern Mode |
-| M5 | BeatScheduler + Rhythm Mode |
-| M6 | Daily Mode + Poki leaderboard |
-| M7 | Accessibility pass (reduced motion, colour-blind, WCAG flash) |
-| M8 | Poki SDK + polish + review submission |
+### Combo Display
 
----
+Consecutive perfect pops can show a visual chain counter such as `x2`, `x3`, and so on. The combo is cosmetic in the GDD, not a gameplay multiplier.
 
-*GDD v1.0 — tatosgames/poppy-game*
+## Juice and Feel
+
+The game should feel fast and tactile. Target feedback timing is under 50 ms from tap to response.
+
+### Core Feedback
+
+- Pop particle burst, about 8 to 12 particles
+- Screen shake for red and overripe pops
+- Splatter decals that persist briefly
+- Floating score text
+- Fruit grow pulse while red
+
+### Polish
+
+- Idle wobble with fruit-specific offsets
+- Dirt meter slosh animation
+- Countdown pop-in
+- Timer pulse at low time
+- Win confetti
+- Overripe drip particles
+- Grade stamp animation
+
+## UI Layout
+
+| Element | Position | Notes |
+|---|---|---|
+| Dirt meter | Top left | Sludge fill style |
+| Timer | Top right | Pulses near the end |
+| Fruit grid | Center | Main interactive play area |
+| Combo display | Bottom right | Fades after inactivity |
+| Splatter decals | Background layer | Below fruit sprites |
+| Score popup | At tap position | Floats upward and fades |
+
+## Fruit Grid Layout
+
+Default layout:
+
+- 5 columns by 3 rows
+- 15 fruits total
+- centered on screen
+- minimum 60 px padding from screen edges
+
+Mobile portrait can switch to a denser layout if needed, but the interaction should remain touch-friendly.
+
+## Technical Notes
+
+### Scene Structure
+
+- `BootScene`
+- `MenuScene`
+- `CountdownScene`
+- `GameScene`
+- `ResultScene`
+
+### Performance Rules
+
+- No allocation in `update()`
+- Use pooling for splatters, particles, and score popups
+- Drive ripeness with delta time
+- Avoid `setTimeout` / `setInterval` for gameplay timing
+- Use tinting for fruit state visuals instead of texture swapping
+
+### Hitbox Rule
+
+Use a hitbox larger than the visible fruit, about 1.3x the sprite size.
+
+### State Thresholds
+
+```js
+const STATE_THRESHOLDS = {
+  GREEN_TO_YELLOW: 2500,
+  YELLOW_TO_RED: 5000,
+  RED_TO_OVERRIPE: 7500
+}
+
+const DIRT_PER_OVERRIPE = 20
+const TIMER_START = 35
+const FRUIT_COUNT = 15
+```
+
+### Visual Colors
+
+```js
+const FRUIT_COLORS = {
+  GREEN: 0x4CAF50,
+  YELLOW: 0xFFC107,
+  RED: 0xE53935,
+  OVERRIPE: 0x4E342E
+}
+
+const SPLATTER_COLORS = {
+  GREEN: 0x66BB6A,
+  YELLOW: 0xFFD54F,
+  RED: 0xEF5350,
+  OVERRIPE: 0x6D4C41
+}
+```
+
+## Audio Design
+
+Audio is recommended but not required for the core loop.
+
+| Event | Sound |
+|---|---|
+| Green pop | Light puff |
+| Yellow pop | Medium squelch |
+| Red pop | Big splat |
+| Overripe pop | Low thud and splat |
+| Countdown | Three short beeps |
+| Win | Short fanfare |
+| Lose | Descending sting |
+
+## Asset List
+
+Minimum viable assets:
+
+- fruit base sprite or shape
+- splatter sprites
+- particle dot
+- dirt bar background
+- dirt bar fill
+
+Graphics objects are acceptable for the first pass.
+
+## Out of Scope
+
+- Physics simulation
+- Multiple fruit types
+- Combo score bonuses that affect win/loss
+- Meta progression
+- Multi-level flow
+- Multiplayer
+- Leaderboards
+
+## Implementation Order
+
+1. Render the fruit grid.
+2. Add tap-to-pop interaction.
+3. Add timer and dirt loss conditions.
+4. Add ripeness states.
+5. Add perfect pop scoring.
+6. Add game state transitions.
+7. Add juice: particles, shake, splatter, score popups.
+8. Add countdown, grades, and polish.
+9. Add audio.
