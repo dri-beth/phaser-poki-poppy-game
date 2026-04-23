@@ -12,6 +12,7 @@ import { PokiPlugin } from '@poki/phaser-3'
 import { BootScene } from './scenes/BootScene'
 import { PreloadScene } from './scenes/PreloadScene'
 import { MenuScene } from './scenes/MenuScene'
+import { CountdownScene } from './scenes/CountdownScene'
 import { GameScene } from './scenes/GameScene'
 import { ResultScene } from './scenes/ResultScene'
 import { ScaleManager } from './core/ScaleManager'
@@ -55,7 +56,7 @@ const config: Phaser.Types.Core.GameConfig = {
     ]
   },
 
-  scene: [BootScene, PreloadScene, MenuScene, GameScene, ResultScene],
+  scene: [BootScene, PreloadScene, MenuScene, CountdownScene, GameScene, ResultScene],
 
   // Performance hints
   render: {

@@ -6,7 +6,7 @@
 
 export const GAME_CONFIG = {
   /** Display name shown in MenuScene title */
-  title: 'Poppy',
+  title: 'Fruit Pop',
 
   /** Canvas width in pixels — portrait 9:16 base resolution */
   width: 480,
@@ -15,7 +15,7 @@ export const GAME_CONFIG = {
   height: 854,
 
   /** CSS hex background color (also used as letterbox color) */
-  backgroundColor: '#1a1a2e',
+  backgroundColor: '#f4e7d3',
 
   /** Set true to show Phaser debug overlays and console logs */
   debug: false,

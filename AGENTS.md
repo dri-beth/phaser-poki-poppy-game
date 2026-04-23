@@ -1,49 +1,34 @@
 # AGENTS.md - AI Agent Reference for phaser-poki-poppy-game
 
-> Written for AI coding agents. Treat the codebase as the source of truth.
-> Human-facing design notes live in README.md, but code wins on conflicts.
-> `FruitPop_GDD_v2.md` is the target gameplay design. The current codebase does not yet implement that design.
+> This file is for AI coding agents, not human documentation.
+> Use code as the source of truth. `FruitPop_GDD_v2.md` describes the target design, but current code wins on conflicts.
+> Human-facing overview lives in `README.md`.
 
 ---
 
 ## 1. Project Overview
 
-**What this repo is:** a Phaser 3 + TypeScript + Vite Poki browser game prototype. The current implementation is a bubble-pop board game with combo scoring, board refills, Poki ad hooks, persisted mute/high score, and responsive portrait scaling.
+**What this repo is:** a Phaser 3 + TypeScript + Vite Poki browser game called `Fruit Pop`. The current runtime is a portrait-first fruit ripeness game with a countdown entry, dirt meter, timer pressure, perfect pops, win/lose result states, and persisted mute/high-score storage.
 
-**Target design:** `FruitPop_GDD_v2.md` defines the next gameplay direction. That design is a single-screen fruit ripeness tap game with timer, dirt meter, perfect pops, grades, and win/lose states.
+**Target platform:** Poki web games, portrait layout, base canvas `480 x 854`.
 
-**Target platform:** Poki web games, portrait-first, base canvas 480x854.
+**Resolved versions in this workspace**
 
-**Installed versions**
-
-| Package | package.json spec | Installed |
+| Package | package.json spec | Resolved version |
 |---|---|---|
-| phaser | ^3.80.1 | 3.90.0 |
-| @poki/phaser-3 | ^0.0.5 | 0.0.5 |
-| typescript | ^5.4.5 | 5.9.3 |
-| vite | ^5.2.11 | 5.4.21 |
-
-All four are devDependencies.
+| phaser | `^3.80.1` | `3.90.0` |
+| @poki/phaser-3 | `^0.0.5` | `0.0.5` |
+| typescript | `^5.4.5` | `5.9.3` |
+| vite | `^5.2.11` | `5.4.21` |
 
 **Commands**
 
-- `npm run dev` -> `vite` on `http://localhost:3000` with `host: true` and `open: true`
+- `npm run dev` -> Vite dev server at `http://localhost:3000`
 - `npm run build` -> `tsc && vite build`
 - `npm run typecheck` -> `tsc --noEmit`
 - `npm run preview` -> `vite preview`
 
 **Entry point:** `index.html` -> `src/main.ts`
-
-### FruitPop Target Design
-
-When implementing the GDD, the current starter systems are only partial matches.
-
-- `GameScene` must eventually become the fruit ripeness board, not the current bubble combo game.
-- `PreloadScene` should load fruit, splatter, particle, dirt bar, and audio assets instead of generating bubble placeholder textures.
-- `MenuScene` should become the Fruit Pop start screen with animated fruit background and best-score display.
-- `ResultScene` should show win/lose-specific end states, grades, and replay flow.
-- A `CountdownScene` or countdown overlay will likely be needed for the GDD's 3-2-1-GO intro.
-- `ComboSystem`, `DifficultySystem`, and `SpawnSystem` are not the FruitPop core loop; treat them as removable or replaceable if they no longer fit the target design.
 
 ---
 
@@ -53,49 +38,49 @@ When implementing the GDD, the current starter systems are only partial matches.
 
 | File | Responsibility |
 |---|---|
-| `index.html` | HTML shell. Sets the mobile viewport, `touch-action: none`, and mounts `#game-container`. The browser tab title is currently `My Game`. |
-| `vite.config.ts` | Vite config. Uses `base: './'`, `port: 3000`, `open: true`, and splits Phaser into its own chunk. |
-| `tsconfig.json` | Strict TS config. `moduleResolution: bundler`, `noEmit: true`, `types: ["vite/client"]`. |
+| `index.html` | HTML shell. Sets the viewport, disables page zoom, mounts `#game-container`, and sets the browser tab title to `Fruit Pop`. |
+| `vite.config.ts` | Vite config. Uses `base: './'`, `port: 3000`, `open: true`, `assetsDir: 'assets'`, and splits Phaser into its own chunk. |
+| `tsconfig.json` | Strict TypeScript config. `moduleResolution: bundler`, `noEmit: true`, `noUnusedLocals: true`, `noUnusedParameters: true`. |
 | `package.json` | Scripts and dependency specs. |
-| `src/main.ts` | Boots Phaser, registers the Poki plugin globally, and starts the scene stack. |
-| `src/scenes/BootScene.ts` | Initializes `ScaleManager` and `AudioManager`, then fades into `PreloadScene` after `BALANCING.bootDelay`. |
-| `src/scenes/PreloadScene.ts` | Shows loading UI, generates placeholder textures (`bubble`, `bubble_ring`, `particle`), and transitions to `MenuScene`. Audio loads are still TODO comments. |
-| `src/scenes/MenuScene.ts` | Title screen, play button, mute toggle, high score display, keyboard shortcuts. |
-| `src/scenes/GameScene.ts` | Core gameplay. Builds the bubble grid, handles taps, combo scoring, pop FX, board clear/refill, HUD, and the handoff to `ResultScene`. |
-| `src/scenes/ResultScene.ts` | End-of-session summary, count-up animation, play-again/menu buttons, rewarded-ad placeholder. |
-| `src/core/AudioManager.ts` | Static audio singleton with persisted mute and volume state plus browser audio unlock handling. |
-| `src/core/Config.ts` | Runtime config wrapper around `GAME_CONFIG` and `BALANCING`, plus simple environment detection. |
-| `src/core/SaveManager.ts` | Prefix-scoped localStorage wrapper and key registry. |
-| `src/core/ScaleManager.ts` | Responsive Phaser scale config and orientation-warning overlay. This is the only module that creates/removes DOM elements. |
+| `src/main.ts` | Boots `Phaser.Game`, registers the Poki plugin, and declares scene order. |
+| `src/scenes/BootScene.ts` | Initializes `ScaleManager` and `AudioManager`, then routes to `PreloadScene`. |
+| `src/scenes/PreloadScene.ts` | Shows loading UI, generates placeholder textures (`fruit`, `splatter`, `particle`), and routes to `MenuScene`. Audio loads are still TODO comments. |
+| `src/scenes/MenuScene.ts` | Title screen. Shows best score, mute toggle, animated fruit backdrop, and starts `CountdownScene`. |
+| `src/scenes/CountdownScene.ts` | 3-2-1-GO intro before gameplay. Starts `GameScene` after the countdown. |
+| `src/scenes/GameScene.ts` | Core gameplay. Builds the fruit grid, handles ripeness, taps, dirt meter, timer, scoring, pooling, and the `ResultScene` handoff. |
+| `src/scenes/ResultScene.ts` | End screen for win/lose outcomes. Shows score, perfect pops, grade, and replay/menu actions. |
+| `src/core/AudioManager.ts` | Static audio singleton with persisted mute/volume and browser unlock handling. |
+| `src/core/Config.ts` | Runtime config wrapper around `GAME_CONFIG` and `BALANCING`, plus environment detection. |
+| `src/core/SaveManager.ts` | Prefix-scoped `localStorage` helper and key registry. |
+| `src/core/ScaleManager.ts` | Responsive Phaser scale config and orientation overlay. This is the only module that creates/removes DOM elements. |
 | `src/data/gameConfig.ts` | Game title, canvas size, background color, debug flag, version, physics mode, target FPS. |
-| `src/data/balancing.ts` | Board dimensions, pop timings, combo tiers, refill timings, scene fades, boot delay, and dormant difficulty values. |
-| `src/systems/ScoreSystem.ts` | Current score plus persisted high score. |
-| `src/systems/ComboSystem.ts` | Streak-to-multiplier mapping used by `GameScene`. |
-| `src/systems/DifficultySystem.ts` | Time-based difficulty helper. Present, but currently unused by the scenes. |
-| `src/systems/SpawnSystem.ts` | Delta-driven spawn scheduler. Present, but currently unused by the scenes. |
-| `src/components/ProgressBar.ts` | Reusable Phaser graphics progress bar. |
+| `src/data/balancing.ts` | Fruit Pop tuning values plus legacy compatibility constants for dormant helpers. |
+| `src/systems/ScoreSystem.ts` | Current score and persisted high score. |
+| `src/systems/ComboSystem.ts` | Legacy helper. Not wired into the current Fruit Pop flow. |
+| `src/systems/DifficultySystem.ts` | Legacy helper. Not wired into the current Fruit Pop flow. |
+| `src/systems/SpawnSystem.ts` | Legacy helper. Not wired into the current Fruit Pop flow. |
+| `src/components/ProgressBar.ts` | Reusable Phaser progress bar component. |
 | `src/components/UIButton.ts` | Reusable Phaser button component. |
-| `src/utils/helpers.ts` | Pure helper functions such as `formatScore`. |
+| `src/utils/helpers.ts` | Pure helpers such as `formatTime` and `formatScore`. |
+| `src/types/fruitPop.ts` | Shared Fruit Pop result types. |
 | `src/types/poki.d.ts` | Ambient typings for `@poki/phaser-3`. |
 
 ### 2.2 Current Scene Flow
 
-`BootScene` -> `PreloadScene` -> `MenuScene` -> `GameScene` -> `ResultScene`
+`BootScene -> PreloadScene -> MenuScene -> CountdownScene -> GameScene -> ResultScene`
 
 - `main.ts` registers Poki with `loadingSceneKey: 'PreloadScene'`, `gameplaySceneKey: 'GameScene'`, and `autoCommercialBreak: true`.
 - `PreloadScene` completion is the loading boundary that Poki watches.
 - `GameScene` is the gameplay boundary that Poki watches.
-- `GameScene` also calls `commercialBreak()` when a board is cleared, then refills the board.
-- `ResultScene` can return to `GameScene` or `MenuScene`.
+- `CountdownScene` is a local transition scene only; Poki does not watch it.
+- `ResultScene` returns to `GameScene` through `CountdownScene` or back to `MenuScene`.
 
-There is no enemy/lives loop in the current codebase. The active gameplay loop is board-pop -> combo score -> board clear -> refill.
-
-### 2.3 System Dependency Graph
+### 2.3 Runtime Dependencies
 
 ```text
 main.ts
   -> ScaleManager.getPhaserScaleConfig()
-  -> BootScene, PreloadScene, MenuScene, GameScene, ResultScene
+  -> BootScene, PreloadScene, MenuScene, CountdownScene, GameScene, ResultScene
   -> PokiPlugin global registration
 
 BootScene
@@ -107,7 +92,7 @@ BootScene
 PreloadScene
   -> ProgressBar
   -> config, GAME_CONFIG, BALANCING
-  -> generates texture keys used by GameScene
+  -> generates texture keys used by GameScene and MenuScene
 
 MenuScene
   -> UIButton
@@ -115,27 +100,34 @@ MenuScene
   -> SaveManager + SAVE_KEYS
   -> config, GAME_CONFIG, BALANCING
 
+CountdownScene
+  -> config, GAME_CONFIG, BALANCING
+  -> uses the `fruit` texture generated in PreloadScene
+
 GameScene
   -> ScoreSystem -> SaveManager
-  -> ComboSystem -> BALANCING.comboStreakThresholds / comboMultipliers
   -> AudioManager
-  -> formatScore
+  -> formatTime
   -> config, GAME_CONFIG, BALANCING
+  -> FruitPop result data types
 
 ResultScene
   -> UIButton
   -> formatScore
   -> config, GAME_CONFIG, BALANCING
+  -> FruitPop result data types
 
 AudioManager -> SaveManager -> localStorage
+ScoreSystem -> SaveManager -> localStorage
 ScaleManager -> window + document (orientation overlay only)
+Config -> GAME_CONFIG, BALANCING
 ```
 
 ---
 
 ## 3. Critical Constraints
 
-### 3.1 Scene keys must match Poki plugin config
+### 3.1 Poki scene keys must match exactly
 
 `main.ts` uses:
 
@@ -144,62 +136,88 @@ loadingSceneKey: 'PreloadScene'
 gameplaySceneKey: 'GameScene'
 ```
 
-The scene constructors must keep the same keys:
+Keep the scene constructors aligned:
 
 - `new BootScene({ key: 'BootScene' })`
 - `new PreloadScene({ key: 'PreloadScene' })`
 - `new MenuScene({ key: 'MenuScene' })`
+- `new CountdownScene({ key: 'CountdownScene' })`
 - `new GameScene({ key: 'GameScene' })`
 - `new ResultScene({ key: 'ResultScene' })`
 
-If `PreloadScene` or `GameScene` is renamed, update the constructor and the Poki plugin data together.
+If `PreloadScene` or `GameScene` is renamed, update the constructor and Poki plugin data together.
 
-### 3.2 `SaveManager` key prefix is fixed
+### 3.2 SaveManager prefix is fixed
 
-All saved values use the `pg_` prefix. Never write to localStorage directly from scenes or systems. Use `SaveManager.save/load/remove/clearAll` and keys from `SAVE_KEYS`.
+All saved values use the `pg_` prefix. Never write to `localStorage` directly from scenes or systems. Use `SaveManager.save`, `SaveManager.load`, `SaveManager.remove`, or `SaveManager.clearAll` and keys from `SAVE_KEYS`.
 
-### 3.3 `AudioManager` is a singleton
+### 3.3 AudioManager is a singleton
 
-Do not instantiate it. It is static-only and owns:
+Do not instantiate `AudioManager`. It is static-only and owns:
 
 - persisted mute state
-- SFX/music volume state
+- SFX and music volume state
 - current looping music track
 - browser audio unlock listeners
 
 `AudioManager.init(this)` is called once from `BootScene.init()`.
 
-### 3.4 `ScaleManager.getPhaserScaleConfig()` must stay in `main.ts`
+### 3.4 ScaleManager.getPhaserScaleConfig() stays in main.ts
 
-The scale config is consumed at `new Phaser.Game(config)` time. Keep the call in the root game config and do not move it into a scene.
+The scale config is consumed when `new Phaser.Game(config)` runs. Keep `ScaleManager.getPhaserScaleConfig()` in the root game config. Do not move it into a scene.
 
 ### 3.5 DOM access is tightly scoped
 
-`ScaleManager` is the only module that should create/remove DOM elements. `AudioManager` may add/remove document-level event listeners for audio unlock, but it should not create UI or mutate the page layout.
+`ScaleManager` is the only module that should create or remove DOM elements. `AudioManager` may attach and remove document-level event listeners for audio unlock, but it should not create UI or mutate page layout.
 
-### 3.6 GameScene state is board-based
+### 3.6 GameScene is the live gameplay contract
 
-`GameScene` currently depends on these texture keys being available:
+Current gameplay depends on these generated texture keys:
 
-- `bubble`
-- `bubble_ring`
+- `fruit`
+- `splatter`
 - `particle`
 
-If you replace the placeholder texture generation in `PreloadScene`, keep those keys or update `GameScene` at the same time.
+Keep those keys if you change `PreloadScene` generation. If you replace them with real assets, update `GameScene` at the same time.
 
-`GameScene` also starts `ResultScene` with `{ score, highScore, isNewHighScore }`. Keep the sender and receiver in sync if you add or rename fields.
-
-### 3.7 Scene startup order
-
-The scene array in `main.ts` must keep `BootScene` first:
+`GameScene` starts `ResultScene` with `FruitPopResultData`:
 
 ```ts
-scene: [BootScene, PreloadScene, MenuScene, GameScene, ResultScene]
+{
+  outcome: 'win' | 'lose',
+  reason: string,
+  score: number,
+  perfectPops: number,
+  totalFruits: number,
+  highScore: number,
+  isNewHighScore: boolean,
+  grade: 'S' | 'A' | 'B' | 'C' | 'D'
+}
 ```
 
-### 3.8 Phaser globals
+The current score is only awarded for perfect red pops. The combo text is cosmetic and must not become a score multiplier unless the design changes again.
 
-`Phaser` is available as an ambient global in scene files because `main.ts` imports the Phaser package. Scene files do not need to import Phaser directly.
+### 3.7 Scene order in main.ts is fragile
+
+Keep the scene array in this order:
+
+```ts
+scene: [BootScene, PreloadScene, MenuScene, CountdownScene, GameScene, ResultScene]
+```
+
+`BootScene` must stay first.
+
+### 3.8 Phaser globals are available
+
+`Phaser` is available as an ambient global in scene files because `main.ts` imports the package. Scene files do not need to import `Phaser` directly.
+
+### 3.9 Legacy systems are dormant
+
+`ComboSystem`, `DifficultySystem`, and `SpawnSystem` still exist in `src/systems/`, but the current Fruit Pop scenes do not use them. Do not wire new Fruit Pop gameplay through them unless you are intentionally reviving the old starter-mode architecture.
+
+### 3.10 There is no `public/assets/` folder in the repo
+
+`PreloadScene` currently uses generated placeholder textures. Do not document `public/assets/` as an existing asset location unless you add it.
 
 ---
 
@@ -209,18 +227,18 @@ scene: [BootScene, PreloadScene, MenuScene, GameScene, ResultScene]
 
 | File | What to change |
 |---|---|
-| `src/scenes/GameScene.ts` | Replace the gameplay implementation if you are moving toward FruitPop. The current methods to understand are `createBackground()`, `createParticleEmitter()`, `createBoard()`, `onBubbleTap()`, `playPopFX()`, `onBoardCleared()`, `refillBoard()`, `createHUD()`, `updateHUD()`, and `exitToMenu()`. FruitPop will need a fruit ripeness board, dirt meter, timer, and win/lose logic instead of the current bubble combo loop. |
-| `src/scenes/PreloadScene.ts` | Replace `loadAssets()` if you are adding real FruitPop asset files. Keep the loading UI and the transition to `MenuScene`. |
-| `src/scenes/MenuScene.ts` | Replace if you are implementing the FruitPop menu screen. The GDD wants animated fruit background, title, tap-to-start, and best score. |
-| `src/scenes/ResultScene.ts` | Replace if you are implementing the FruitPop win/lose result states, grades, and replay flow. |
-| `src/scenes/CountdownScene.ts` | Add if you implement the GDD countdown as a dedicated scene instead of an overlay. |
+| `src/scenes/GameScene.ts` | Replace the gameplay implementation if you are changing fruit ripeness, dirt rules, timer rules, board layout, pooling, or the `ResultScene` handoff. |
+| `src/scenes/PreloadScene.ts` | Replace `loadAssets()` if you are adding real art/audio files. Keep the loading UI and transition logic intact. |
+| `src/scenes/MenuScene.ts` | Replace if you are changing the title screen layout, entry flow, or best-score presentation. |
+| `src/scenes/CountdownScene.ts` | Replace if the countdown flow or transition timing changes. |
+| `src/scenes/ResultScene.ts` | Replace if you change the end-state layout, result copy, grade display, or replay/menu flow. |
 
 ### 4.2 Files to tune
 
 | File | What to change |
 |---|---|
-| `src/data/balancing.ts` | Board size, bubble size, pop timings, combo thresholds/multipliers, refill timings, scene fades, boot delay, and the dormant difficulty constants. For FruitPop, this file will need ripeness thresholds, dirt penalty, timer start, and grade-related values instead. |
-| `src/data/gameConfig.ts` | Title, width, height, background color, debug flag, version, and target FPS. If you rebrand, update `index.html`'s `<title>` too. FruitPop uses the title `Fruit Pop` in the GDD. |
+| `src/data/balancing.ts` | Fruit size, grid size, ripeness windows, timer length, dirt penalty, fail threshold, countdown timing, and effect timings. |
+| `src/data/gameConfig.ts` | Title, canvas size, background color, debug flag, version, physics mode, target FPS. |
 
 ### 4.3 Files to extend
 
@@ -228,30 +246,23 @@ scene: [BootScene, PreloadScene, MenuScene, GameScene, ResultScene]
 |---|---|
 | `src/core/SaveManager.ts` | Add new entries to `SAVE_KEYS` before using them in storage. |
 | `src/utils/helpers.ts` | Add pure utilities only. |
+| `src/types/fruitPop.ts` | Add new result fields or shared Fruit Pop types if the result payload grows. |
 | `src/types/poki.d.ts` | Add new Poki API declarations if the plugin surface grows. |
-| `src/scenes/PreloadScene.ts` | Add real `this.load.image`, `this.load.audio`, or `this.load.spritesheet` calls. |
 
 ### 4.4 Files to avoid modifying unless necessary
 
 | File | Why it is fragile |
 |---|---|
 | `src/core/AudioManager.ts` | Singleton state, persisted mute/volume, and browser unlock logic. |
-| `src/core/SaveManager.ts` | Prefix rules and existing save compatibility. |
+| `src/core/SaveManager.ts` | Prefix rules and save compatibility. |
 | `src/core/ScaleManager.ts` | Scale config order and orientation overlay behavior. |
-| `src/components/UIButton.ts` | Tested pointer and touch interaction states. |
+| `src/components/UIButton.ts` | Stable pointer/touch interaction behavior. |
 | `src/components/ProgressBar.ts` | Stable reusable component. |
 | `src/main.ts` | Poki plugin data and scene order are fragile. |
-| `index.html` | Required viewport and `touch-action` behavior. |
-
-### 4.5 FruitPop migration path
-
-When aligning the codebase with `FruitPop_GDD_v2.md`, prioritize the following:
-
-1. Replace the current bubble grid loop in `GameScene` with fruit ripeness states, dirt meter, timer, and win/lose handling.
-2. Replace placeholder texture generation in `PreloadScene` with fruit, splatter, particle, dirt meter, and audio asset loads.
-3. Rewrite `MenuScene` and `ResultScene` to match the GDD menu, countdown entry point, and end-state presentation.
-4. Update `BALANCING` and `GAME_CONFIG` to use FruitPop timing, scoring, and title values.
-5. Remove or repurpose `ComboSystem`, `DifficultySystem`, and `SpawnSystem` if the FruitPop implementation does not need them.
+| `index.html` | Required viewport, `touch-action`, and title behavior. |
+| `src/systems/ComboSystem.ts` | Dormant legacy helper. |
+| `src/systems/DifficultySystem.ts` | Dormant legacy helper. |
+| `src/systems/SpawnSystem.ts` | Dormant legacy helper. |
 
 ---
 
@@ -274,21 +285,23 @@ clearHighScore(): void
 - Writes a new high score through `SaveManager` whenever the current score exceeds the stored best.
 - `isNewHighScore()` returns true when the current score is positive and at least the stored high score.
 
-### 5.2 ComboSystem
+### 5.2 FruitPopResultData
 
 ```ts
-constructor(thresholds: readonly number[], multipliers: readonly number[])
-onPop(): number
-reset(): void
-get streak(): number
-get multiplier(): number
-multiplierAt(streak: number): number
+interface FruitPopResultData {
+  outcome: 'win' | 'lose'
+  reason: string
+  score: number
+  perfectPops: number
+  totalFruits: number
+  highScore: number
+  isNewHighScore: boolean
+  grade: 'S' | 'A' | 'B' | 'C' | 'D'
+}
 ```
 
-- Used by `GameScene`.
-- The current balancing data maps streaks `[0, 5, 10, 15]` to multipliers `[1, 2, 3, 5]`.
-- `onPop()` increments streak and returns the new multiplier.
-- `reset()` returns the combo to 1x.
+- `GameScene` passes this into `ResultScene`.
+- `ResultScene` reads the same shape in `init(data)`.
 
 ### 5.3 AudioManager
 
@@ -306,9 +319,10 @@ static get sfxVolume(): number
 static get musicVolume(): number
 ```
 
-- `init()` loads persisted state and wires document unlock listeners for `touchstart`, `touchend`, `mousedown`, and `keydown`.
-- `playSfx()` and `playMusic()` no-op safely if audio is missing or the context is not ready.
-- Mute and volume changes persist through `SaveManager`.
+- `init()` loads persisted mute and volume state.
+- It wires one-time browser audio unlock listeners for `touchstart`, `touchend`, `mousedown`, and `keydown`.
+- Unlock listeners are removed after the first successful unlock.
+- `playSfx()` and `playMusic()` no-op safely if the sound key is missing or audio is locked.
 
 ### 5.4 SaveManager
 
@@ -348,7 +362,7 @@ get isDisabled(): boolean
 
 - Auto-adds itself to the scene display list.
 - Emits `click` on pointer-up.
-- Enforces a minimum effective touch target of 44x44 px.
+- Enforces a minimum effective touch target of 44 x 44 px.
 
 ### 5.7 ProgressBar
 
@@ -372,11 +386,17 @@ get value(): number
 
 ## 6. Common Tasks
 
-### Add a new bubble theme
+### Add or change a fruit visual
 
-1. Update the palette constants and bubble tint logic in `GameScene`.
-2. If the theme needs new art, add real asset loads in `PreloadScene.loadAssets()`.
-3. Keep the required texture keys (`bubble`, `bubble_ring`, `particle`) unless `GameScene` is updated too.
+1. Update the generated texture or asset load in `PreloadScene`.
+2. Keep the `fruit`, `splatter`, and `particle` keys stable unless `GameScene` changes too.
+3. Tune fruit tinting or state handling in `GameScene`.
+
+### Tune the game feel
+
+1. Edit `src/data/balancing.ts`.
+2. Adjust ripeness windows, dirt penalty, timer length, popup timing, or countdown timing.
+3. Keep the scene code free of magic numbers where possible.
 
 ### Add a new saved value
 
@@ -384,38 +404,28 @@ get value(): number
 2. Save with `SaveManager.save(SAVE_KEYS.yourKey, value)`.
 3. Load with `SaveManager.load(SAVE_KEYS.yourKey, defaultValue)`.
 
-### Add a rewarded ad
-
-1. Use `this.plugins.get('poki')` in `ResultScene`.
-2. Call `rewardedBreak()` from a delayed callback if you want a short UI pause first.
-3. Keep the reward logic isolated so the scene still works when the plugin is unavailable.
-
-### Add a new UI button
-
-```ts
-new UIButton({
-  scene: this,
-  x: 100,
-  y: 100,
-  width: 200,
-  height: 56,
-  label: 'SETTINGS',
-  onClick: () => this.scene.start('SettingsScene')
-})
-```
-
 ### Add a new scene
 
 1. Create `src/scenes/MyScene.ts` with `super({ key: 'MyScene' })`.
 2. Import it in `src/main.ts`.
-3. Add it to the `scene` array.
-4. Keep `BootScene` at index 0.
+3. Add it to the `scene` array in `main.ts`.
+4. Keep `BootScene` first.
 
 ### Rebrand the game
 
-1. Change `src/data/gameConfig.ts` -> `title`.
-2. Change `index.html` -> `<title>`.
-3. Update any in-scene title text that uses `config.game.title`.
+1. Change `src/data/gameConfig.ts -> title`.
+2. Change `index.html -> <title>`.
+3. Update any in-scene title copy that uses `config.game.title`.
+
+### Add real art or audio
+
+1. Replace the generated textures in `PreloadScene`.
+2. Add audio loads in the commented TODO block.
+3. Keep the current keys stable if the rest of the code still depends on them.
+
+### Touch the legacy systems
+
+Only edit `ComboSystem`, `DifficultySystem`, or `SpawnSystem` if you are intentionally resurrecting the old starter architecture. Do not use them as the normal path for Fruit Pop gameplay.
 
 ---
 
@@ -423,24 +433,23 @@ new UIButton({
 
 The current code still contains intentional TODOs and stubs:
 
-| Placeholder | Location | What it means |
+| Placeholder | Location | Meaning |
 |---|---|---|
-| Analytics hooks | `MenuScene`, `GameScene`, `ResultScene` | TODO comments for menu view, game start, board clear, result view, and restart events. |
-| Rewarded ad hook | `ResultScene` | The ad callback is commented out and not active yet. |
-| Real audio loads | `PreloadScene.loadAssets()` | Audio asset lines are still commented out. No audio files are loaded today. |
-| Browser tab title | `index.html` | Still says `My Game` while the in-game title is `Poppy`. |
+| Analytics hooks | `MenuScene`, `GameScene`, `ResultScene` | TODO comments for menu view, game start, gameplay, and result events. |
+| Real audio loads | `PreloadScene.loadAssets()` | The audio asset lines are still commented out. No audio files are loaded yet. |
+| Generated textures | `PreloadScene.loadAssets()` | `fruit`, `splatter`, and `particle` are generated at runtime for now. |
+| Legacy compatibility values | `src/data/balancing.ts` | Extra tuning keys remain so dormant legacy helpers still compile. |
 
 Notes:
 
 - There is no `public/assets/` directory in the repo today.
-- The existing game works with generated placeholder textures, so if you replace them, update the gameplay code that depends on those keys.
-- The FruitPop GDD systems are not implemented yet in this prototype. Treat the GDD section as target behavior, not current code.
+- `GameScene` and `ResultScene` are already wired to the Fruit Pop result payload.
 
 ---
 
 ## 8. Test Checklist
 
-Run these after any change that touches gameplay, assets, scene flow, storage, or the Poki integration.
+Run these checks after changes that touch gameplay, assets, scene flow, storage, or Poki integration.
 
 ### Basic checks
 
@@ -450,44 +459,45 @@ Run these after any change that touches gameplay, assets, scene flow, storage, o
 
 ### Scene flow
 
-- Game starts in `BootScene`.
-- `BootScene` transitions to `PreloadScene` quickly.
-- `PreloadScene` shows a loading bar and then enters `MenuScene`.
-- `MenuScene` shows the title, tagline, play button, mute button, and high score when present.
-- `PLAY` transitions to `GameScene`.
+- BootScene transitions to PreloadScene quickly.
+- PreloadScene shows the progress bar and then enters MenuScene.
+- MenuScene shows title, play button, mute button, and best score when present.
+- Play starts CountdownScene.
+- CountdownScene shows `3`, `2`, `1`, `GO!` and then enters GameScene.
+- GameScene renders a 5 x 3 fruit grid.
+- ResultScene shows win or lose copy and returns to MenuScene or CountdownScene.
 
 ### GameScene
 
-- Bubble grid renders at startup.
-- Tapping a bubble pops it and disables interaction on that cell.
-- Combo text appears when the multiplier is above 1x.
-- Score increases on pops.
-- Pop FX trigger: scale punch, ring ripple, flash, particles, haptic.
-- Clearing the board triggers a Poki commercial break when available.
-- Board refills after the break.
-- Exit button takes the player to `ResultScene` with score data.
+- Green and yellow fruit remove cleanly with no dirt penalty.
+- Red fruit counts as a perfect pop and increments score and perfect pop count.
+- Overripe fruit adds 20 dirt and can end the round at 100 dirt.
+- Timer counts down and can end the round at zero.
+- Clearing all fruit ends the round as a win.
+- Splatter, popup text, and particle effects reuse pooled objects.
 
 ### ResultScene
 
 - Final score displays correctly.
-- Score count-up animation runs.
-- `NEW BEST!` appears only for a new high score.
-- `PLAY AGAIN` returns to `GameScene`.
+- Grade is shown and matches the result payload.
+- `NEW BEST!` appears only on a new high score.
+- `PLAY AGAIN` returns through `CountdownScene`.
 - `MENU` returns to `MenuScene`.
 - `Enter` and `R` restart the game.
 
 ### Poki
 
-- No `gameLoadingFinished` or `gameplayStart` / `gameplayStop` errors.
-- `PreloadScene` and `GameScene` keys match the plugin config exactly.
-- `autoCommercialBreak` remains enabled in `main.ts`.
+- `loadingSceneKey` stays `PreloadScene`.
+- `gameplaySceneKey` stays `GameScene`.
+- `autoCommercialBreak` stays enabled in `main.ts`.
+- No scene key drift between `main.ts` and the scene constructors.
 
 ### Audio and storage
 
 - Mute state persists after reload.
 - High score persists after reload.
 - All stored keys are prefixed with `pg_`.
-- Audio helpers no-op safely when assets are missing.
+- Audio unlock remains safe on first touch or click.
 
 ### Responsive
 
@@ -501,16 +511,3 @@ Run these after any change that touches gameplay, assets, scene flow, storage, o
 - Build exits with code 0.
 - `dist/` contains the built HTML and bundled assets.
 - Phaser is split into its own chunk by Vite.
-
-### FruitPop target checks
-
-These are not satisfied by the current prototype yet, but they should be tested once the GDD is implemented:
-
-- Fruit grid spawns in a 5x3 layout by default.
-- Fruits ripen through Green -> Yellow -> Red -> Overripe.
-- Perfect taps score only on Red fruit.
-- Overripe taps raise dirt meter by 20.
-- Timer counts down from 35 seconds.
-- Win triggers when all fruits are cleared.
-- Lose triggers on timer expiry or dirt meter 100.
-- Result screen shows win/lose state and grade.

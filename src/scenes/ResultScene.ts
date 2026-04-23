@@ -1,13 +1,6 @@
 /**
  * ResultScene.ts
- * End-of-game screen showing:
- * - Final score
- * - High score (highlighted if new record)
- * - Restart button → GameScene
- * - Menu button → MenuScene
- * - Rewarded ad hook placeholder (TODO)
- *
- * Receives data from GameScene via scene.start('ResultScene', { score, highScore, isNewHighScore })
+ * Fruit Pop end screen for win/lose outcomes.
  */
 
 import { UIButton } from '../components/UIButton'
@@ -15,20 +8,24 @@ import { config } from '../core/Config'
 import { GAME_CONFIG } from '../data/gameConfig'
 import { BALANCING } from '../data/balancing'
 import { formatScore } from '../utils/helpers'
-
-// Data passed from GameScene
-interface ResultData {
-  score: number
-  highScore: number
-  isNewHighScore: boolean
-}
+import type { FruitPopResultData } from '../types/fruitPop'
 
 const CX = GAME_CONFIG.width / 2
 const CY = GAME_CONFIG.height / 2
 
-export class ResultScene extends Phaser.Scene {
-  private resultData: ResultData = { score: 0, highScore: 0, isNewHighScore: false }
+const DEFAULT_RESULT: FruitPopResultData = {
+  outcome: 'lose',
+  reason: "Time's up",
+  score: 0,
+  perfectPops: 0,
+  totalFruits: 15,
+  highScore: 0,
+  isNewHighScore: false,
+  grade: 'D'
+}
 
+export class ResultScene extends Phaser.Scene {
+  private resultData: FruitPopResultData = DEFAULT_RESULT
   private enterKey!: Phaser.Input.Keyboard.Key
   private rKey!: Phaser.Input.Keyboard.Key
 
@@ -36,11 +33,10 @@ export class ResultScene extends Phaser.Scene {
     super({ key: 'ResultScene' })
   }
 
-  init(data: ResultData): void {
+  init(data: FruitPopResultData): void {
     this.resultData = {
-      score: data?.score ?? 0,
-      highScore: data?.highScore ?? 0,
-      isNewHighScore: data?.isNewHighScore ?? false
+      ...DEFAULT_RESULT,
+      ...data
     }
   }
 
@@ -49,104 +45,136 @@ export class ResultScene extends Phaser.Scene {
     this.cameras.main.fadeIn(BALANCING.sceneFadeDuration, 0, 0, 0)
 
     this.createBackground()
-    this.createScoreDisplay()
+    this.createSummary()
     this.createButtons()
     this.setupKeyboard()
 
-    // TODO: rewarded break hook
-    // Uncomment to offer a rewarded ad after a short delay:
-    //
-    // this.time.delayedCall(500, () => {
-    //   const poki = this.plugins.get('poki') as PokiPlugin
-    //   poki.rewardedBreak().then((rewarded) => {
-    //     if (rewarded) {
-    //       // Give the player an extra life, double score, etc.
-    //     }
-    //   })
-    // })
-
-    // TODO: analytics hook — result_screen_shown, score: this.resultData.score
+    // TODO: analytics hook - result_screen_shown
   }
-
-  // ─── UI ───────────────────────────────────────────────────────────────────
 
   private createBackground(): void {
     const bg = this.add.graphics()
-    bg.fillStyle(0xfce4ec, 1)
+    const isWin = this.resultData.outcome === 'win'
+
+    bg.fillGradientStyle(
+      isWin ? 0xf7ead4 : 0xf1dbcc,
+      isWin ? 0xf7ead4 : 0xf1dbcc,
+      isWin ? 0xe9f4dc : 0xe9d7d0,
+      isWin ? 0xe7f0ff : 0xded4ca,
+      1
+    )
     bg.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height)
-    // Soft decorative circles
-    bg.fillStyle(0xf48fb1, 0.12)
-    bg.fillCircle(60, 200, 160)
-    bg.fillStyle(0x90caf9, 0.1)
-    bg.fillCircle(GAME_CONFIG.width - 40, GAME_CONFIG.height - 150, 200)
+
+    bg.fillStyle(isWin ? 0x7ccf5b : 0x7a4b35, 0.1)
+    bg.fillCircle(CX - 110, 180, 170)
+    bg.fillStyle(isWin ? 0xffb18f : 0x5f4b2c, 0.1)
+    bg.fillCircle(CX + 90, GAME_CONFIG.height - 180, 200)
   }
 
-  private createScoreDisplay(): void {
-    const { score, highScore, isNewHighScore } = this.resultData
+  private createSummary(): void {
+    const { outcome, reason, score, perfectPops, highScore, isNewHighScore, grade } =
+      this.resultData
+    const isWin = outcome === 'win'
+    const headline = isWin ? 'HARVEST COMPLETE' : 'ROUND OVER'
+    const accent = isWin ? '#7ccf5b' : '#d95a4e'
 
-    // Session header
     this.add
-      .text(CX, CY - 210, 'SESSION OVER', {
-        fontSize: '38px',
+      .text(CX, CY - 210, isWin ? 'WIN' : 'LOSE', {
+        fontSize: '42px',
         fontFamily: 'Arial, sans-serif',
-        color: '#e91e63',
+        color: accent,
+        fontStyle: 'bold',
+        resolution: 2,
+        stroke: '#ffffff',
+        strokeThickness: 4
+      })
+      .setOrigin(0.5)
+
+    this.add
+      .text(CX, CY - 160, headline, {
+        fontSize: '24px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#7a3e2c',
         fontStyle: 'bold',
         resolution: 2
       })
       .setOrigin(0.5)
 
-    // Score card background
-    const cardH = 160
-    const card = this.add.graphics()
-    card.fillStyle(0xffffff, 0.7)
-    card.fillRoundedRect(CX - 160, CY - 165, 320, cardH, 16)
-    card.lineStyle(2, 0xe91e63, 0.3)
-    card.strokeRoundedRect(CX - 160, CY - 165, 320, cardH, 16)
-
-    // Score label
     this.add
-      .text(CX, CY - 140, 'Score', {
+      .text(CX, CY - 128, reason, {
+        fontSize: '18px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#8c7352',
+        resolution: 2
+      })
+      .setOrigin(0.5)
+
+    const card = this.add.graphics()
+    card.fillStyle(0xffffff, 0.72)
+    card.fillRoundedRect(CX - 165, CY - 80, 330, 250, 18)
+    card.lineStyle(2, accent === '#7ccf5b' ? 0x7ccf5b : 0xd95a4e, 0.35)
+    card.strokeRoundedRect(CX - 165, CY - 80, 330, 250, 18)
+
+    this.add
+      .text(CX, CY - 48, 'Score', {
         fontSize: '16px',
         fontFamily: 'Arial, sans-serif',
-        color: '#9e7c6e',
+        color: '#8c7352',
         resolution: 2
       })
       .setOrigin(0.5)
 
-    // Score value
-    const scoreColor = isNewHighScore ? '#e91e63' : '#5d4037'
-    const scoreDisplay = this.add
-      .text(CX, CY - 110, formatScore(score), {
-        fontSize: '52px',
+    const scoreValue = this.add
+      .text(CX, CY - 20, formatScore(score), {
+        fontSize: '54px',
         fontFamily: 'Arial, sans-serif',
-        color: scoreColor,
+        color: accent,
         fontStyle: 'bold',
         resolution: 2
       })
       .setOrigin(0.5)
 
-    // Animate score counting up (optional but satisfying)
     if (score > 0) {
       let displayed = 0
-      const increment = Math.ceil(score / 40)
+      const increment = Math.max(1, Math.ceil(score / 40))
       const counter = this.time.addEvent({
         delay: 30,
         repeat: 40,
         callback: () => {
           displayed = Math.min(score, displayed + increment)
-          scoreDisplay.setText(formatScore(displayed))
-          if (displayed >= score) counter.remove()
+          scoreValue.setText(formatScore(displayed))
+          if (displayed >= score) {
+            counter.remove()
+          }
         }
       })
     }
 
-    // New high score banner
+    this.add
+      .text(CX, CY + 42, `Perfect Pops: ${perfectPops}`, {
+        fontSize: '18px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#7a3e2c',
+        resolution: 2
+      })
+      .setOrigin(0.5)
+
+    this.add
+      .text(CX, CY + 72, `Grade: ${grade}`, {
+        fontSize: '18px',
+        fontFamily: 'Arial, sans-serif',
+        color: isWin ? '#7ccf5b' : '#d95a4e',
+        fontStyle: 'bold',
+        resolution: 2
+      })
+      .setOrigin(0.5)
+
     if (isNewHighScore) {
       const banner = this.add
-        .text(CX, CY - 55, '🏆 NEW BEST!', {
+        .text(CX, CY + 104, 'NEW BEST!', {
           fontSize: '20px',
           fontFamily: 'Arial, sans-serif',
-          color: '#e91e63',
+          color: '#f26b5d',
           fontStyle: 'bold',
           resolution: 2
         })
@@ -154,8 +182,8 @@ export class ResultScene extends Phaser.Scene {
 
       this.tweens.add({
         targets: banner,
-        scaleX: 1.1,
-        scaleY: 1.1,
+        scaleX: 1.08,
+        scaleY: 1.08,
         duration: 500,
         yoyo: true,
         repeat: -1,
@@ -163,10 +191,10 @@ export class ResultScene extends Phaser.Scene {
       })
     } else if (highScore > 0) {
       this.add
-        .text(CX, CY - 55, `Best: ${formatScore(highScore)}`, {
+        .text(CX, CY + 104, `Best: ${formatScore(highScore)}`, {
           fontSize: '16px',
           fontFamily: 'Arial, sans-serif',
-          color: '#9e7c6e',
+          color: '#8c7352',
           resolution: 2
         })
         .setOrigin(0.5)
@@ -174,38 +202,34 @@ export class ResultScene extends Phaser.Scene {
   }
 
   private createButtons(): void {
-    // ── Play Again ───────────────────────────────────────────────────────────
     new UIButton({
       scene: this,
       x: CX,
-      y: CY + 30,
+      y: CY + 176,
       width: 240,
       height: 64,
       label: 'PLAY AGAIN',
       fontSize: 24,
-      color: 0x4a90d9,
-      hoverColor: 0x5ba3f5,
-      pressColor: 0x357abd,
+      color: 0xf26b5d,
+      hoverColor: 0xff7f73,
+      pressColor: 0xd95a4e,
       onClick: () => this.restartGame()
     })
 
-    // ── Main Menu ────────────────────────────────────────────────────────────
     new UIButton({
       scene: this,
       x: CX,
-      y: CY + 110,
+      y: CY + 256,
       width: 200,
       height: 52,
       label: 'MENU',
       fontSize: 20,
-      color: 0x2c3e50,
-      hoverColor: 0x3d5166,
-      pressColor: 0x1a252f,
+      color: 0x8c7352,
+      hoverColor: 0xa28967,
+      pressColor: 0x6d5740,
       onClick: () => this.goToMenu()
     })
   }
-
-  // ─── Keyboard ─────────────────────────────────────────────────────────────
 
   private setupKeyboard(): void {
     this.enterKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
@@ -215,26 +239,20 @@ export class ResultScene extends Phaser.Scene {
     this.rKey.on('down', this.restartGame, this)
   }
 
-  // ─── Navigation ───────────────────────────────────────────────────────────
-
   private restartGame(): void {
-    // TODO: analytics hook — game_restarted
+    // TODO: analytics hook - game_restarted
     this.cameras.main.fadeOut(BALANCING.sceneFadeDuration, 0, 0, 0)
-    this.cameras.main.once(
-      Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
-      () => this.scene.start('GameScene')
-    )
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.start('CountdownScene')
+    })
   }
 
   private goToMenu(): void {
     this.cameras.main.fadeOut(BALANCING.sceneFadeDuration, 0, 0, 0)
-    this.cameras.main.once(
-      Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
-      () => this.scene.start('MenuScene')
-    )
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.start('MenuScene')
+    })
   }
-
-  // ─── Cleanup ──────────────────────────────────────────────────────────────
 
   shutdown(): void {
     this.enterKey?.destroy()
