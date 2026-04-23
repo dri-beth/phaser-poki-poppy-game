@@ -8,7 +8,7 @@
 
 ## 1. Project Overview
 
-**What this repo is:** a Phaser 3 + TypeScript + Vite Poki browser game called `Fruit Pop`. The current runtime is a portrait-first fruit ripeness game with a countdown entry, dirt meter, timer pressure, perfect pops, win/lose result states, and persisted mute/high-score storage.
+**What this repo is:** a Phaser 3 + TypeScript + Vite Poki browser game called `Fruit Pop`. The current runtime is a portrait-first fruit ripeness game with a countdown entry, 25-level progression, a dynamic board that grows from `2x2` to `10x10`, dirt meter, timer pressure, perfect pops, win/lose result states, and persisted mute/high-score storage.
 
 **Target platform:** Poki web games, portrait layout, base canvas `480 x 854`.
 
@@ -46,15 +46,15 @@
 | `src/scenes/BootScene.ts` | Initializes `ScaleManager` and `AudioManager`, then routes to `PreloadScene`. |
 | `src/scenes/PreloadScene.ts` | Shows loading UI, generates placeholder textures (`fruit`, `splatter`, `particle`), and routes to `MenuScene`. Audio loads are still TODO comments. |
 | `src/scenes/MenuScene.ts` | Title screen. Shows best score, mute toggle, animated fruit backdrop, and starts `CountdownScene`. |
-| `src/scenes/CountdownScene.ts` | 3-2-1-GO intro before gameplay. Starts `GameScene` after the countdown. |
-| `src/scenes/GameScene.ts` | Core gameplay. Builds the fruit grid, handles ripeness, taps, dirt meter, timer, scoring, pooling, and the `ResultScene` handoff. |
-| `src/scenes/ResultScene.ts` | End screen for win/lose outcomes. Shows score, perfect pops, grade, and replay/menu actions. |
+| `src/scenes/CountdownScene.ts` | 3-2-1-GO intro before gameplay. Carries the current level and board progression into `GameScene`. |
+| `src/scenes/GameScene.ts` | Core gameplay. Builds the dynamic fruit grid, applies the current level tuning, handles ripeness, taps, dirt meter, timer, scoring, pooling, and the `ResultScene` handoff. |
+| `src/scenes/ResultScene.ts` | End screen for win/lose outcomes. Shows score, perfect pops, grade, level info, board size, and replay/menu actions. |
 | `src/core/AudioManager.ts` | Static audio singleton with persisted mute/volume and browser unlock handling. |
 | `src/core/Config.ts` | Runtime config wrapper around `GAME_CONFIG` and `BALANCING`, plus environment detection. |
 | `src/core/SaveManager.ts` | Prefix-scoped `localStorage` helper and key registry. |
 | `src/core/ScaleManager.ts` | Responsive Phaser scale config and orientation overlay. This is the only module that creates/removes DOM elements. |
 | `src/data/gameConfig.ts` | Game title, canvas size, background color, debug flag, version, physics mode, target FPS. |
-| `src/data/balancing.ts` | Fruit Pop tuning values plus legacy compatibility constants for dormant helpers. |
+| `src/data/balancing.ts` | Fruit Pop tuning values, the 25-level progression table, dynamic board layout helpers, and legacy compatibility constants for dormant helpers. |
 | `src/systems/ScoreSystem.ts` | Current score and persisted high score. |
 | `src/systems/ComboSystem.ts` | Legacy helper. Not wired into the current Fruit Pop flow. |
 | `src/systems/DifficultySystem.ts` | Legacy helper. Not wired into the current Fruit Pop flow. |
@@ -73,7 +73,7 @@
 - `PreloadScene` completion is the loading boundary that Poki watches.
 - `GameScene` is the gameplay boundary that Poki watches.
 - `CountdownScene` is a local transition scene only; Poki does not watch it.
-- `ResultScene` returns to `GameScene` through `CountdownScene` or back to `MenuScene`.
+- `ResultScene` returns to `CountdownScene` with the next level after a win, or back to level 1 after a loss. `MenuScene` always resets to level 1.
 
 ### 2.3 Runtime Dependencies
 
@@ -102,17 +102,20 @@ MenuScene
 
 CountdownScene
   -> config, GAME_CONFIG, BALANCING
+  -> getFruitPopLevel(), FRUIT_POP_MAX_LEVEL
   -> uses the `fruit` texture generated in PreloadScene
 
 GameScene
   -> ScoreSystem -> SaveManager
   -> AudioManager
+  -> getFruitPopLevel(), getFruitPopProgress(), getFruitPopBoardLayout(), FRUIT_POP_MAX_LEVEL
   -> formatTime
   -> config, GAME_CONFIG, BALANCING
   -> FruitPop result data types
 
 ResultScene
   -> UIButton
+  -> getFruitPopLevel(), FRUIT_POP_MAX_LEVEL
   -> formatScore
   -> config, GAME_CONFIG, BALANCING
   -> FruitPop result data types
@@ -184,6 +187,8 @@ Keep those keys if you change `PreloadScene` generation. If you replace them wit
 
 ```ts
 {
+  level: number,
+  nextLevel: number,
   outcome: 'win' | 'lose',
   reason: string,
   score: number,
@@ -195,7 +200,7 @@ Keep those keys if you change `PreloadScene` generation. If you replace them wit
 }
 ```
 
-The current score is only awarded for perfect red pops. The combo text is cosmetic and must not become a score multiplier unless the design changes again.
+The current score is only awarded for perfect red pops, and the combo text is cosmetic. Keep the 25-level board progression separate from the moment-to-moment FruitState logic.
 
 ### 3.7 Scene order in main.ts is fragile
 
@@ -237,7 +242,7 @@ scene: [BootScene, PreloadScene, MenuScene, CountdownScene, GameScene, ResultSce
 
 | File | What to change |
 |---|---|
-| `src/data/balancing.ts` | Fruit size, grid size, ripeness windows, timer length, dirt penalty, fail threshold, countdown timing, and effect timings. |
+| `src/data/balancing.ts` | Fruit size, grid size, board ramp values, level curve values, ripeness windows, timer length, dirt penalty, fail threshold, countdown timing, and effect timings. |
 | `src/data/gameConfig.ts` | Title, canvas size, background color, debug flag, version, physics mode, target FPS. |
 
 ### 4.3 Files to extend
@@ -246,7 +251,7 @@ scene: [BootScene, PreloadScene, MenuScene, CountdownScene, GameScene, ResultSce
 |---|---|
 | `src/core/SaveManager.ts` | Add new entries to `SAVE_KEYS` before using them in storage. |
 | `src/utils/helpers.ts` | Add pure utilities only. |
-| `src/types/fruitPop.ts` | Add new result fields or shared Fruit Pop types if the result payload grows. |
+| `src/types/fruitPop.ts` | Add new result fields, level data, or shared Fruit Pop types if the result payload grows. |
 | `src/types/poki.d.ts` | Add new Poki API declarations if the plugin surface grows. |
 
 ### 4.4 Files to avoid modifying unless necessary
@@ -395,7 +400,7 @@ get value(): number
 ### Tune the game feel
 
 1. Edit `src/data/balancing.ts`.
-2. Adjust ripeness windows, dirt penalty, timer length, popup timing, or countdown timing.
+2. Adjust the level table first, then tweak ripeness windows, dirt penalty, timer length, popup timing, or countdown timing.
 3. Keep the scene code free of magic numbers where possible.
 
 ### Add a new saved value
@@ -469,6 +474,9 @@ Run these checks after changes that touch gameplay, assets, scene flow, storage,
 
 ### GameScene
 
+- Level 1 should feel slow, generous, and rewarding.
+- Board size should start at `2x2` and grow toward `10x10` by level 25.
+- Each cleared round should increase pressure in a visible way.
 - Green and yellow fruit remove cleanly with no dirt penalty.
 - Red fruit counts as a perfect pop and increments score and perfect pop count.
 - Overripe fruit adds 20 dirt and can end the round at 100 dirt.
@@ -481,7 +489,7 @@ Run these checks after changes that touch gameplay, assets, scene flow, storage,
 - Final score displays correctly.
 - Grade is shown and matches the result payload.
 - `NEW BEST!` appears only on a new high score.
-- `PLAY AGAIN` returns through `CountdownScene`.
+- The primary result button advances to the next level after a win, or retries at level 1 after a loss.
 - `MENU` returns to `MenuScene`.
 - `Enter` and `R` restart the game.
 

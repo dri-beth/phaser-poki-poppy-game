@@ -6,7 +6,7 @@
 import { UIButton } from '../components/UIButton'
 import { config } from '../core/Config'
 import { GAME_CONFIG } from '../data/gameConfig'
-import { BALANCING } from '../data/balancing'
+import { BALANCING, FRUIT_POP_MAX_LEVEL, getFruitPopLevel } from '../data/balancing'
 import { formatScore } from '../utils/helpers'
 import type { FruitPopResultData } from '../types/fruitPop'
 
@@ -14,6 +14,8 @@ const CX = GAME_CONFIG.width / 2
 const CY = GAME_CONFIG.height / 2
 
 const DEFAULT_RESULT: FruitPopResultData = {
+  level: 1,
+  nextLevel: 1,
   outcome: 'lose',
   reason: "Time's up",
   score: 0,
@@ -72,14 +74,43 @@ export class ResultScene extends Phaser.Scene {
   }
 
   private createSummary(): void {
-    const { outcome, reason, score, perfectPops, highScore, isNewHighScore, grade } =
+    const { level, outcome, reason, score, perfectPops, highScore, isNewHighScore, grade } =
       this.resultData
     const isWin = outcome === 'win'
+    const levelConfig = getFruitPopLevel(level)
     const headline = isWin ? 'HARVEST COMPLETE' : 'ROUND OVER'
     const accent = isWin ? '#7ccf5b' : '#d95a4e'
 
     this.add
-      .text(CX, CY - 210, isWin ? 'WIN' : 'LOSE', {
+      .text(CX, CY - 232, `LEVEL ${level} / ${FRUIT_POP_MAX_LEVEL}`, {
+        fontSize: '24px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#7a3e2c',
+        fontStyle: 'bold',
+        resolution: 2
+      })
+      .setOrigin(0.5)
+
+    this.add
+      .text(CX, CY - 202, levelConfig.label, {
+        fontSize: '18px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#8c7352',
+        resolution: 2
+      })
+      .setOrigin(0.5)
+
+    this.add
+      .text(CX, CY - 176, `BOARD ${levelConfig.boardLabel}`, {
+        fontSize: '16px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#8c7352',
+        resolution: 2
+      })
+      .setOrigin(0.5)
+
+    this.add
+      .text(CX, CY - 150, isWin ? 'WIN' : 'LOSE', {
         fontSize: '42px',
         fontFamily: 'Arial, sans-serif',
         color: accent,
@@ -91,7 +122,7 @@ export class ResultScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.add
-      .text(CX, CY - 160, headline, {
+      .text(CX, CY - 104, headline, {
         fontSize: '24px',
         fontFamily: 'Arial, sans-serif',
         color: '#7a3e2c',
@@ -101,7 +132,7 @@ export class ResultScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.add
-      .text(CX, CY - 128, reason, {
+      .text(CX, CY - 72, reason, {
         fontSize: '18px',
         fontFamily: 'Arial, sans-serif',
         color: '#8c7352',
@@ -111,12 +142,12 @@ export class ResultScene extends Phaser.Scene {
 
     const card = this.add.graphics()
     card.fillStyle(0xffffff, 0.72)
-    card.fillRoundedRect(CX - 165, CY - 80, 330, 250, 18)
+    card.fillRoundedRect(CX - 165, CY - 32, 330, 262, 18)
     card.lineStyle(2, accent === '#7ccf5b' ? 0x7ccf5b : 0xd95a4e, 0.35)
-    card.strokeRoundedRect(CX - 165, CY - 80, 330, 250, 18)
+    card.strokeRoundedRect(CX - 165, CY - 32, 330, 262, 18)
 
     this.add
-      .text(CX, CY - 48, 'Score', {
+      .text(CX, CY - 4, 'Score', {
         fontSize: '16px',
         fontFamily: 'Arial, sans-serif',
         color: '#8c7352',
@@ -125,7 +156,7 @@ export class ResultScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     const scoreValue = this.add
-      .text(CX, CY - 20, formatScore(score), {
+      .text(CX, CY + 24, formatScore(score), {
         fontSize: '54px',
         fontFamily: 'Arial, sans-serif',
         color: accent,
@@ -151,7 +182,7 @@ export class ResultScene extends Phaser.Scene {
     }
 
     this.add
-      .text(CX, CY + 42, `Perfect Pops: ${perfectPops}`, {
+      .text(CX, CY + 86, `Perfect Pops: ${perfectPops}`, {
         fontSize: '18px',
         fontFamily: 'Arial, sans-serif',
         color: '#7a3e2c',
@@ -160,7 +191,7 @@ export class ResultScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.add
-      .text(CX, CY + 72, `Grade: ${grade}`, {
+      .text(CX, CY + 116, `Grade: ${grade}`, {
         fontSize: '18px',
         fontFamily: 'Arial, sans-serif',
         color: isWin ? '#7ccf5b' : '#d95a4e',
@@ -171,7 +202,7 @@ export class ResultScene extends Phaser.Scene {
 
     if (isNewHighScore) {
       const banner = this.add
-        .text(CX, CY + 104, 'NEW BEST!', {
+        .text(CX, CY + 148, 'NEW BEST!', {
           fontSize: '20px',
           fontFamily: 'Arial, sans-serif',
           color: '#f26b5d',
@@ -191,7 +222,7 @@ export class ResultScene extends Phaser.Scene {
       })
     } else if (highScore > 0) {
       this.add
-        .text(CX, CY + 104, `Best: ${formatScore(highScore)}`, {
+        .text(CX, CY + 148, `Best: ${formatScore(highScore)}`, {
           fontSize: '16px',
           fontFamily: 'Arial, sans-serif',
           color: '#8c7352',
@@ -202,13 +233,20 @@ export class ResultScene extends Phaser.Scene {
   }
 
   private createButtons(): void {
+    const primaryLabel =
+      this.resultData.outcome === 'win' && this.resultData.nextLevel > this.resultData.level
+        ? 'NEXT LEVEL'
+        : this.resultData.outcome === 'win'
+          ? 'REPLAY'
+          : 'TRY AGAIN'
+
     new UIButton({
       scene: this,
       x: CX,
-      y: CY + 176,
+      y: CY + 196,
       width: 240,
       height: 64,
-      label: 'PLAY AGAIN',
+      label: primaryLabel,
       fontSize: 24,
       color: 0xf26b5d,
       hoverColor: 0xff7f73,
@@ -219,7 +257,7 @@ export class ResultScene extends Phaser.Scene {
     new UIButton({
       scene: this,
       x: CX,
-      y: CY + 256,
+      y: CY + 274,
       width: 200,
       height: 52,
       label: 'MENU',
@@ -241,9 +279,11 @@ export class ResultScene extends Phaser.Scene {
 
   private restartGame(): void {
     // TODO: analytics hook - game_restarted
+    const nextLevel =
+      this.resultData.outcome === 'win' ? this.resultData.nextLevel : 1
     this.cameras.main.fadeOut(BALANCING.sceneFadeDuration, 0, 0, 0)
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-      this.scene.start('CountdownScene')
+      this.scene.start('CountdownScene', { level: nextLevel })
     })
   }
 

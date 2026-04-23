@@ -3,7 +3,7 @@
  * Fruit Pop gameplay.
  *
  * Core loop:
- * - 5x3 fruit grid
+ * - Square fruit board that grows per level
  * - Fruits ripen over time
  * - Tap outcomes depend on ripeness
  * - Perfect taps score, overripe taps add dirt
@@ -13,12 +13,22 @@
 import { AudioManager } from '../core/AudioManager'
 import { ScoreSystem } from '../systems/ScoreSystem'
 import { GAME_CONFIG } from '../data/gameConfig'
-import { BALANCING } from '../data/balancing'
+import {
+  BALANCING,
+  FRUIT_POP_MAX_LEVEL,
+  getFruitPopBoardLayout,
+  getFruitPopLevel,
+  getFruitPopProgress
+} from '../data/balancing'
 import { formatTime } from '../utils/helpers'
-import type { FruitPopOutcome, FruitPopGrade, FruitPopResultData } from '../types/fruitPop'
+import type {
+  FruitPopOutcome,
+  FruitPopGrade,
+  FruitPopResultData,
+  FruitPopRunData
+} from '../types/fruitPop'
 
 const CX = GAME_CONFIG.width / 2
-const CY = GAME_CONFIG.height / 2
 
 type FruitState = 0 | 1 | 2 | 3
 
@@ -67,9 +77,11 @@ const POPUP_LABELS: Record<FruitState, string> = {
 }
 
 export class GameScene extends Phaser.Scene {
+  private level = 1
+  private levelConfig = getFruitPopLevel(1)
   private scoreSystem!: ScoreSystem
   private fruits: FruitCell[] = []
-  private popParticles!: Phaser.GameObjects.Particles.ParticleEmitter
+  private popParticles: Phaser.GameObjects.Particles.ParticleEmitter | null = null
   private splatterPool: SplatterEntry[] = []
   private popupPool: PopupEntry[] = []
 
@@ -96,13 +108,22 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' })
   }
 
+  init(data: FruitPopRunData): void {
+    this.level = Math.max(1, Math.floor(data?.level ?? 1))
+    this.levelConfig = getFruitPopLevel(this.level)
+  }
+
   create(): void {
     this.cameras.main.setBackgroundColor(GAME_CONFIG.backgroundColor)
     this.cameras.main.fadeIn(BALANCING.sceneFadeDuration, 0, 0, 0)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this)
 
     this.scoreSystem = new ScoreSystem()
     this.fruits = []
-    this.timerRemainingMs = BALANCING.timerStartMs
+    this.splatterPool = []
+    this.popupPool = []
+    this.destroyParticles()
+    this.timerRemainingMs = this.levelConfig.timerStartMs
     this.dirtMeter = 0
     this.perfectPops = 0
     this.comboChain = 0
@@ -147,8 +168,58 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createHUD(): void {
+    const progress = getFruitPopProgress(this.level)
+    const progressBarWidth = 220
+    const progressBarHeight = 10
+    const progressBarX = CX - progressBarWidth / 2
+    const progressBarY = 34
+    const progressFillWidth = Math.max(0, Math.round(progressBarWidth * progress))
+
     this.add
-      .text(16, 12, 'DIRT', {
+      .text(CX, 10, `LEVEL ${this.level} / ${FRUIT_POP_MAX_LEVEL}`, {
+        fontSize: '18px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#7a3e2c',
+        fontStyle: 'bold',
+        resolution: 2
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(20)
+
+    this.add
+      .text(CX, 30, `BOARD ${this.levelConfig.boardLabel}`, {
+        fontSize: '16px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#8c7352',
+        resolution: 2
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(20)
+
+    const progressTrack = this.add.graphics().setDepth(19)
+    progressTrack.fillStyle(0x8c7352, 0.18)
+    progressTrack.fillRoundedRect(progressBarX, progressBarY, progressBarWidth, progressBarHeight, 5)
+    progressTrack.lineStyle(1, 0x7a3e2c, 0.25)
+    progressTrack.strokeRoundedRect(progressBarX, progressBarY, progressBarWidth, progressBarHeight, 5)
+
+    const progressFill = this.add.graphics().setDepth(20)
+    if (progressFillWidth > 0) {
+      progressFill.fillStyle(0x7ccf5b, 1)
+      progressFill.fillRoundedRect(progressBarX, progressBarY, progressFillWidth, progressBarHeight, 5)
+    }
+
+    this.add
+      .text(progressBarX + progressBarWidth + 8, progressBarY - 1, `${Math.round(progress * 100)}%`, {
+        fontSize: '14px',
+        fontFamily: 'Arial, sans-serif',
+        color: '#7a3e2c',
+        resolution: 2
+      })
+      .setOrigin(0, 0)
+      .setDepth(20)
+
+    this.add
+      .text(16, 10, 'DIRT', {
         fontSize: '14px',
         fontFamily: 'Arial, sans-serif',
         color: '#7a3e2c',
@@ -158,7 +229,7 @@ export class GameScene extends Phaser.Scene {
       .setDepth(20)
 
     this.dirtValueText = this.add
-      .text(16, 30, '0 / 100', {
+      .text(16, 28, '0 / 100', {
         fontSize: '16px',
         fontFamily: 'Arial, sans-serif',
         color: '#7a3e2c',
@@ -170,7 +241,7 @@ export class GameScene extends Phaser.Scene {
     this.dirtFill = this.add.graphics().setDepth(20)
 
     this.timerText = this.add
-      .text(GAME_CONFIG.width - 16, 14, formatTime(BALANCING.timerStartMs), {
+      .text(GAME_CONFIG.width - 16, 12, formatTime(this.levelConfig.timerStartMs), {
         fontSize: '24px',
         fontFamily: 'Arial, sans-serif',
         color: '#7a3e2c',
@@ -181,7 +252,7 @@ export class GameScene extends Phaser.Scene {
       .setDepth(20)
 
     this.perfectText = this.add
-      .text(CX, 18, 'Perfect: 0', {
+      .text(CX, 72, 'Perfect: 0', {
         fontSize: '18px',
         fontFamily: 'Arial, sans-serif',
         color: '#7a3e2c',
@@ -232,28 +303,31 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createFruitBoard(): void {
-    const { fruitCols, fruitRows, fruitSize, gridGap } = BALANCING
-    const boardW = fruitCols * fruitSize + (fruitCols - 1) * gridGap
-    const boardH = fruitRows * fruitSize + (fruitRows - 1) * gridGap
-    const startX = CX - boardW / 2 + fruitSize / 2
-    const startY = CY - boardH / 2 + fruitSize / 2 + 22
-    const hitSize = fruitSize * 1.3
+    const boardCols = this.levelConfig.boardCols
+    const boardRows = this.levelConfig.boardRows
+    const layout = getFruitPopBoardLayout(boardCols, boardRows)
+    const topInset = 118
+    const bottomInset = 126
+    const availableHeight = GAME_CONFIG.height - topInset - bottomInset
+    const startX = CX - layout.boardSpanX / 2 + layout.fruitSize / 2
+    const startY = topInset + (availableHeight - layout.boardSpanY) / 2 + layout.fruitSize / 2
 
-    this.fruitsRemaining = fruitCols * fruitRows
+    this.fruitsRemaining = boardCols * boardRows
 
-    for (let row = 0; row < fruitRows; row++) {
-      for (let col = 0; col < fruitCols; col++) {
-        const x = startX + col * (fruitSize + gridGap)
-        const y = startY + row * (fruitSize + gridGap)
-        const initialElapsed = this.getInitialElapsed()
-        const state = this.getFruitState(initialElapsed)
+    for (let row = 0; row < boardRows; row++) {
+      for (let col = 0; col < boardCols; col++) {
+        const x = startX + col * (layout.fruitSize + layout.gridGap)
+        const y = startY + row * (layout.fruitSize + layout.gridGap)
+        const seed = this.getInitialFruitSeed()
+        const initialElapsed = seed.elapsedMs
+        const state = seed.state
         const sprite = this.add.image(x, y, 'fruit')
-        sprite.setDisplaySize(fruitSize, fruitSize)
+        sprite.setDisplaySize(layout.fruitSize, layout.fruitSize)
         sprite.setDepth(10)
         sprite.setTint(FRUIT_TINTS[state])
         sprite.setAngle(Phaser.Math.Between(-8, 8))
 
-        const hitArea = this.add.zone(x, y, hitSize, hitSize)
+        const hitArea = this.add.zone(x, y, layout.hitSize, layout.hitSize)
         hitArea.setDepth(11)
         hitArea.setInteractive({ useHandCursor: true })
 
@@ -263,7 +337,7 @@ export class GameScene extends Phaser.Scene {
           state,
           elapsedMs: initialElapsed,
           active: true,
-          ripenRate: Phaser.Math.FloatBetween(0.9, 1.1),
+          ripenRate: Phaser.Math.FloatBetween(this.levelConfig.ripenRateMin, this.levelConfig.ripenRateMax),
           wobblePhase: Phaser.Math.FloatBetween(0, Math.PI * 2),
           baseScale: 1,
           row,
@@ -277,21 +351,36 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private getInitialElapsed(): number {
+  private getInitialFruitSeed(): { state: FruitState; elapsedMs: number } {
     const roll = Math.random()
-    if (roll < 0.3) {
-      return Phaser.Math.FloatBetween(0, BALANCING.greenToYellowMs - 1)
+
+    if (roll < this.levelConfig.greenStartChance) {
+      return {
+        state: 0,
+        elapsedMs: Phaser.Math.FloatBetween(0, this.levelConfig.greenToYellowMs - 1)
+      }
     }
-    if (roll < 0.8) {
-      return Phaser.Math.FloatBetween(BALANCING.greenToYellowMs, BALANCING.yellowToRedMs - 1)
+
+    if (roll < this.levelConfig.greenStartChance + this.levelConfig.yellowStartChance) {
+      return {
+        state: 1,
+        elapsedMs: Phaser.Math.FloatBetween(
+          this.levelConfig.greenToYellowMs,
+          this.levelConfig.yellowToRedMs - 1
+        )
+      }
     }
-    return Phaser.Math.FloatBetween(BALANCING.yellowToRedMs, BALANCING.redToOverripeMs - 1)
+
+    return {
+      state: 2,
+      elapsedMs: Phaser.Math.FloatBetween(this.levelConfig.yellowToRedMs, this.levelConfig.redToOverripeMs - 1)
+    }
   }
 
   private getFruitState(elapsedMs: number): FruitState {
-    if (elapsedMs >= BALANCING.redToOverripeMs) return 3
-    if (elapsedMs >= BALANCING.yellowToRedMs) return 2
-    if (elapsedMs >= BALANCING.greenToYellowMs) return 1
+    if (elapsedMs >= this.levelConfig.redToOverripeMs) return 3
+    if (elapsedMs >= this.levelConfig.yellowToRedMs) return 2
+    if (elapsedMs >= this.levelConfig.greenToYellowMs) return 1
     return 0
   }
 
@@ -361,27 +450,42 @@ export class GameScene extends Phaser.Scene {
 
     if (state === 2) {
       this.perfectPops += 1
-      this.scoreSystem.add(BALANCING.perfectPoints)
+      this.scoreSystem.add(this.levelConfig.perfectPoints)
       this.comboChain += 1
-      this.spawnPopup(cell.sprite.x, cell.sprite.y - 4, POPUP_LABELS[state], POPUP_COLORS[state], 1)
+      this.spawnPopup(
+        cell.sprite.x,
+        cell.sprite.y - 4,
+        `+${this.levelConfig.perfectPoints} PERFECT!`,
+        POPUP_COLORS[state],
+        this.levelConfig.perfectPoints > 1 ? 1.05 : 1
+      )
       this.spawnSplatter(cell.sprite.x, cell.sprite.y, FRUIT_TINTS[state], 1.1)
-      this.popParticles.explode(BALANCING.particleBurstCount, cell.sprite.x, cell.sprite.y)
+      this.popParticles?.explode(BALANCING.particleBurstCount, cell.sprite.x, cell.sprite.y)
       this.cameras.main.flash(60, 255, 255, 255)
       AudioManager.playSfx(this, 'sfx_perfect')
       this.scheduleComboReset()
     } else if (state === 3) {
-      this.dirtMeter = Math.min(BALANCING.dirtFailThreshold, this.dirtMeter + BALANCING.dirtPerOverripe)
+      this.dirtMeter = Math.min(
+        BALANCING.dirtFailThreshold,
+        this.dirtMeter + this.levelConfig.dirtPerOverripe
+      )
       this.comboChain = 0
-      this.spawnPopup(cell.sprite.x, cell.sprite.y - 4, POPUP_LABELS[state], POPUP_COLORS[state], 1)
+      this.spawnPopup(
+        cell.sprite.x,
+        cell.sprite.y - 4,
+        `+${this.levelConfig.dirtPerOverripe} DIRT`,
+        POPUP_COLORS[state],
+        1
+      )
       this.spawnSplatter(cell.sprite.x, cell.sprite.y, FRUIT_TINTS[state], 1.2)
-      this.popParticles.explode(BALANCING.particleBurstCount, cell.sprite.x, cell.sprite.y)
+      this.popParticles?.explode(BALANCING.particleBurstCount, cell.sprite.x, cell.sprite.y)
       this.cameras.main.shake(100, 0.0025)
       AudioManager.playSfx(this, 'sfx_rotten')
     } else {
       this.comboChain = 0
       this.spawnPopup(cell.sprite.x, cell.sprite.y - 4, POPUP_LABELS[state], POPUP_COLORS[state], 1)
       this.spawnSplatter(cell.sprite.x, cell.sprite.y, FRUIT_TINTS[state], 0.95)
-      this.popParticles.explode(BALANCING.particleBurstCount, cell.sprite.x, cell.sprite.y)
+      this.popParticles?.explode(BALANCING.particleBurstCount, cell.sprite.x, cell.sprite.y)
       AudioManager.playSfx(this, 'sfx_pop')
     }
 
@@ -479,7 +583,7 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    this.comboResetTimer = this.time.delayedCall(BALANCING.comboResetMs, () => {
+    this.comboResetTimer = this.time.delayedCall(this.levelConfig.comboResetMs, () => {
       this.comboChain = 0
       this.updateComboText()
     })
@@ -487,9 +591,7 @@ export class GameScene extends Phaser.Scene {
 
   private updateComboText(): void {
     if (this.comboChain > 1) {
-      this.comboText
-        .setText(`COMBO x${this.comboChain}`)
-        .setVisible(true)
+      this.comboText.setText(`COMBO x${this.comboChain}`).setVisible(true)
       return
     }
 
@@ -566,14 +668,14 @@ export class GameScene extends Phaser.Scene {
 
     this.dirtTrack.clear()
     this.dirtTrack.fillStyle(0x8c7352, 0.16)
-    this.dirtTrack.fillRoundedRect(16, 52, barWidth, barHeight, 7)
+    this.dirtTrack.fillRoundedRect(16, 92, barWidth, barHeight, 7)
     this.dirtTrack.lineStyle(2, 0x7a3e2c, 0.28)
-    this.dirtTrack.strokeRoundedRect(16, 52, barWidth, barHeight, 7)
+    this.dirtTrack.strokeRoundedRect(16, 92, barWidth, barHeight, 7)
 
     this.dirtFill.clear()
     if (fillWidth > 0) {
       this.dirtFill.fillStyle(fillColor, 1)
-      this.dirtFill.fillRoundedRect(16, 52, fillWidth, barHeight, 7)
+      this.dirtFill.fillRoundedRect(16, 92, fillWidth, barHeight, 7)
     }
 
     this.dirtValueText.setText(`${this.dirtMeter} / ${BALANCING.dirtFailThreshold}`)
@@ -617,7 +719,10 @@ export class GameScene extends Phaser.Scene {
     const highScore = this.scoreSystem.getHighScore()
     const isNewHighScore = this.scoreSystem.isNewHighScore()
     const grade = this.getGrade(this.perfectPops, this.fruits.length)
+    const nextLevel = outcome === 'win' ? Math.min(this.level + 1, FRUIT_POP_MAX_LEVEL) : 1
     const data: FruitPopResultData = {
+      level: this.level,
+      nextLevel,
       outcome,
       reason,
       score,
@@ -648,5 +753,32 @@ export class GameScene extends Phaser.Scene {
       this.comboResetTimer.destroy()
       this.comboResetTimer = null
     }
+
+    this.destroyPools()
+    this.destroyParticles()
+  }
+
+  private destroyPools(): void {
+    for (const entry of this.splatterPool) {
+      this.tweens.killTweensOf(entry.image)
+      entry.image.destroy()
+    }
+
+    for (const entry of this.popupPool) {
+      this.tweens.killTweensOf(entry.text)
+      entry.text.destroy()
+    }
+
+    this.splatterPool = []
+    this.popupPool = []
+  }
+
+  private destroyParticles(): void {
+    if (!this.popParticles) {
+      return
+    }
+
+    this.popParticles.destroy()
+    this.popParticles = null
   }
 }

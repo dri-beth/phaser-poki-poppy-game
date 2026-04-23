@@ -50,7 +50,8 @@ const config: Phaser.Types.Core.GameConfig = {
         data: {
           loadingSceneKey: 'PreloadScene',
           gameplaySceneKey: 'GameScene',
-          autoCommercialBreak: true
+          // Ads are disabled for now.
+          // autoCommercialBreak: true
         }
       }
     ]
