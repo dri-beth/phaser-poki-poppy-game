@@ -11,6 +11,7 @@
  */
 
 import { AudioManager } from '../core/AudioManager'
+import { pokiGameplayStart, pokiGameplayStop } from '../core/PokiLifecycle'
 import { ScoreSystem } from '../systems/ScoreSystem'
 import { GAME_CONFIG } from '../data/gameConfig'
 import {
@@ -103,6 +104,7 @@ export class GameScene extends Phaser.Scene {
   private gameEnded = false
   private comboResetTimer: Phaser.Time.TimerEvent | null = null
   private resultQueued = false
+  private pokiGameplayActive = false
 
   constructor() {
     super({ key: 'GameScene' })
@@ -140,8 +142,27 @@ export class GameScene extends Phaser.Scene {
     this.createHUD()
     this.createFruitBoard()
     this.updateHUD(true)
+    this.startPokiGameplay()
 
     // TODO: analytics hook - gameplay_started
+  }
+
+  private startPokiGameplay(): void {
+    if (this.pokiGameplayActive) {
+      return
+    }
+
+    this.pokiGameplayActive = true
+    pokiGameplayStart(this)
+  }
+
+  private stopPokiGameplay(): void {
+    if (!this.pokiGameplayActive) {
+      return
+    }
+
+    this.pokiGameplayActive = false
+    pokiGameplayStop(this)
   }
 
   private createBackground(): void {
@@ -697,6 +718,7 @@ export class GameScene extends Phaser.Scene {
 
     this.gameEnded = true
     this.resultQueued = true
+    this.stopPokiGameplay()
 
     if (this.comboResetTimer) {
       this.comboResetTimer.destroy()
@@ -754,6 +776,7 @@ export class GameScene extends Phaser.Scene {
       this.comboResetTimer = null
     }
 
+    this.stopPokiGameplay()
     this.destroyPools()
     this.destroyParticles()
   }

@@ -12,6 +12,7 @@
 
 import { ProgressBar } from '../components/ProgressBar'
 import { config } from '../core/Config'
+import { pokiGameLoadingFinished } from '../core/PokiLifecycle'
 import { GAME_CONFIG } from '../data/gameConfig'
 import { BALANCING } from '../data/balancing'
 
@@ -36,6 +37,7 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create(): void {
+    pokiGameLoadingFinished(this)
     this.cameras.main.fadeOut(BALANCING.sceneFadeDuration, 0, 0, 0)
     this.cameras.main.once(
       Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
@@ -140,11 +142,12 @@ export class PreloadScene extends Phaser.Scene {
     particleGfx.generateTexture('particle', 8, 8)
     particleGfx.destroy()
 
-    // TODO: Load real audio assets here once they exist.
-    // this.load.audio('sfx_pop', 'assets/sfx_pop.wav')
-    // this.load.audio('sfx_perfect', 'assets/sfx_perfect.wav')
-    // this.load.audio('sfx_rotten', 'assets/sfx_rotten.wav')
-    // this.load.audio('sfx_win', 'assets/sfx_win.wav')
-    // this.load.audio('sfx_lose', 'assets/sfx_lose.wav')
+    this.load.audio('sfx_countdown', 'assets/sfx_countdown.wav')
+    this.load.audio('sfx_go', 'assets/sfx_go.wav')
+    this.load.audio('sfx_pop', 'assets/sfx_pop.wav')
+    this.load.audio('sfx_perfect', 'assets/sfx_perfect.wav')
+    this.load.audio('sfx_rotten', 'assets/sfx_rotten.wav')
+    this.load.audio('sfx_win', 'assets/sfx_win.wav')
+    this.load.audio('sfx_lose', 'assets/sfx_lose.wav')
   }
 }

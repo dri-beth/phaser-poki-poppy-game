@@ -17,10 +17,10 @@ declare module '@poki/phaser-3' {
 
   /** Configuration passed to the plugin via Phaser plugin data */
   export interface PokiPluginData {
-    /** Key of the loading scene — plugin fires gameLoadingFinished when it completes */
-    loadingSceneKey: string
-    /** Key of the gameplay scene — plugin fires gameplayStart/Stop automatically */
-    gameplaySceneKey: string
+    /** Optional loading scene key if you want the plugin to auto-fire loading hooks */
+    loadingSceneKey?: string
+    /** Optional gameplay scene key if you want the plugin to auto-fire gameplay hooks */
+    gameplaySceneKey?: string
     /** If true the plugin fires a commercial break between gameplay sessions */
     autoCommercialBreak?: boolean
   }
@@ -32,6 +32,21 @@ declare module '@poki/phaser-3' {
      * Safe to call at any time — callback fires immediately if SDK is already ready.
      */
     runWhenInitialized(callback: (sdk: PokiSDK) => void): void
+
+    /**
+     * Explicit loading lifecycle hook.
+     */
+    gameLoadingFinished(): void
+
+    /**
+     * Explicit gameplay lifecycle hook.
+     */
+    gameplayStart(): void
+
+    /**
+     * Explicit gameplay lifecycle hook.
+     */
+    gameplayStop(): void
 
     /**
      * Request a rewarded ad break.

@@ -21,6 +21,7 @@ export class AudioManager {
   private static _musicVolume: number = 0.6
   private static _audioUnlocked: boolean = false
   private static _currentMusic: Phaser.Sound.BaseSound | null = null
+  private static _scene: Phaser.Scene | null = null
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ export class AudioManager {
    * Call once from BootScene.create().
    */
   static init(_scene: Phaser.Scene): void {
+    AudioManager._scene = _scene
     AudioManager._muted = SaveManager.load<boolean>(SAVE_KEYS.muted, false)
     AudioManager._sfxVolume = SaveManager.load<number>(SAVE_KEYS.sfxVolume, 1.0)
     AudioManager._musicVolume = SaveManager.load<number>(SAVE_KEYS.musicVolume, 0.6)
@@ -160,15 +162,15 @@ export class AudioManager {
       if (AudioManager._audioUnlocked) return
       AudioManager._audioUnlocked = true
 
-      // Resume any suspended AudioContext (works in all modern browsers)
+      // Resume Phaser's active AudioContext if it is still suspended.
       try {
-        const AudioContextClass =
-          window.AudioContext ??
-          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-        if (AudioContextClass) {
-          const ctx = new AudioContextClass()
+        const soundManager = AudioManager._scene?.sound
+        if (soundManager && 'context' in soundManager) {
+          const ctx = soundManager.context
           if (ctx.state === 'suspended') {
-            ctx.resume().catch(() => {/* ignore */})
+            ctx.resume().catch(() => {
+              /* ignore */
+            })
           }
         }
       } catch {

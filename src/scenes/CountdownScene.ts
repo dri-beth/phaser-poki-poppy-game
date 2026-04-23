@@ -5,6 +5,7 @@
 
 import { GAME_CONFIG } from '../data/gameConfig'
 import { BALANCING, FRUIT_POP_MAX_LEVEL, getFruitPopLevel } from '../data/balancing'
+import { AudioManager } from '../core/AudioManager'
 import { config } from '../core/Config'
 import type { FruitPopRunData } from '../types/fruitPop'
 
@@ -115,6 +116,7 @@ export class CountdownScene extends Phaser.Scene {
       })
 
       if (label === 'GO!') {
+        AudioManager.playSfx(this, 'sfx_go')
         this.cameras.main.flash(120, 255, 255, 255)
         this.time.delayedCall(BALANCING.countdownGoHoldMs, () => {
           this.scene.start('GameScene', { level: this.level })
@@ -122,6 +124,7 @@ export class CountdownScene extends Phaser.Scene {
         return
       }
 
+      AudioManager.playSfx(this, 'sfx_countdown')
       this.stepIndex += 1
       this.time.delayedCall(BALANCING.countdownStepMs, showStep)
     }

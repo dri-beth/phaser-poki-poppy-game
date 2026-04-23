@@ -47,12 +47,7 @@ const config: Phaser.Types.Core.GameConfig = {
         plugin: PokiPlugin,
         key: 'poki',
         start: true,
-        data: {
-          loadingSceneKey: 'PreloadScene',
-          gameplaySceneKey: 'GameScene',
-          // Ads are disabled for now.
-          // autoCommercialBreak: true
-        }
+        data: {}
       }
     ]
   },
