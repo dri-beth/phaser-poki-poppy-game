@@ -16,7 +16,6 @@ import { SaveManager, SAVE_KEYS } from '../core/SaveManager'
 import { config } from '../core/Config'
 import { ScaleManager } from '../core/ScaleManager'
 import { getViewportLayout, type ViewportLayout } from '../core/ViewportLayout'
-import { GAME_CONFIG } from '../data/gameConfig'
 import { BALANCING } from '../data/balancing'
 import { pokiBridge } from '../lib/poki/PokiBridge'
 
@@ -55,12 +54,12 @@ export class MenuScene extends Phaser.Scene {
   private createBackground(layout: ViewportLayout): void {
     const bg = this.add.graphics()
     bg.fillGradientStyle(0xf7ead4, 0xf7ead4, 0xe9f4dc, 0xe7f0ff, 1)
-    bg.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height)
+    bg.fillRect(0, 0, layout.width, layout.height)
 
     bg.fillStyle(0xffffff, 0.1)
     bg.fillCircle(layout.cx - 140, 160, 180)
     bg.fillStyle(0xffb18f, 0.08)
-    bg.fillCircle(layout.cx + 120, GAME_CONFIG.height - 160, 210)
+    bg.fillCircle(layout.cx + 120, layout.height - 160, 210)
   }
 
   private createBackdropFruitGrid(layout: ViewportLayout): void {
@@ -260,7 +259,7 @@ export class MenuScene extends Phaser.Scene {
       guideY,
       guideSpacing,
       playY,
-      playWidth: layout.isLandscape ? (isTightLandscape ? 220 : 230) : isCompact ? 220 : 240,
+      playWidth: layout.isLandscape ? Math.min(layout.width - 80, 280) : Math.min(layout.width - 80, 300),
       playFontSize: layout.isLandscape ? (isTightLandscape ? 24 : 26) : isCompact ? 24 : 26,
       muteY,
       muteWidth: layout.isLandscape ? 170 : isCompact ? 170 : 180,

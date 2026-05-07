@@ -1,5 +1,3 @@
-import { GAME_CONFIG } from '../data/gameConfig'
-
 export class ScaleManager {
   static init(): void {
     window.addEventListener('orientationchange', () => {
@@ -15,10 +13,7 @@ export class ScaleManager {
 
   static getPhaserScaleConfig(): Phaser.Types.Core.ScaleConfig {
     return {
-      mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
-      width: GAME_CONFIG.width,
-      height: GAME_CONFIG.height,
+      mode: Phaser.Scale.RESIZE,
       parent: 'game-container',
       expandParent: true
     }

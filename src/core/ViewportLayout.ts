@@ -1,4 +1,3 @@
-import { GAME_CONFIG } from '../data/gameConfig'
 import { ScaleManager } from './ScaleManager'
 
 export interface ViewportLayout {
@@ -20,8 +19,8 @@ export interface ViewportLayout {
 }
 
 export function getViewportLayout(): ViewportLayout {
-  const width = GAME_CONFIG.width
-  const height = GAME_CONFIG.height
+  const width = ScaleManager.viewportWidth
+  const height = ScaleManager.viewportHeight
   const isLandscape = ScaleManager.isLandscape
   const safeMargin = isLandscape ? 12 : 16
   const sideRailWidth = isLandscape ? 138 : 0

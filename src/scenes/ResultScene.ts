@@ -6,7 +6,6 @@
 import { UIButton } from '../components/UIButton'
 import { config } from '../core/Config'
 import { getViewportLayout, type ViewportLayout } from '../core/ViewportLayout'
-import { GAME_CONFIG } from '../data/gameConfig'
 import { BALANCING, FRUIT_POP_MAX_LEVEL, getFruitPopLevel } from '../data/balancing'
 import { formatScore } from '../utils/helpers'
 import type { FruitPopResultData } from '../types/fruitPop'
@@ -64,12 +63,12 @@ export class ResultScene extends Phaser.Scene {
       isWin ? 0xe7f0ff : 0xded4ca,
       1
     )
-    bg.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height)
+    bg.fillRect(0, 0, layout.width, layout.height)
 
     bg.fillStyle(isWin ? 0x7ccf5b : 0x7a4b35, 0.1)
     bg.fillCircle(layout.cx - 110, 180, 170)
     bg.fillStyle(isWin ? 0xffb18f : 0x5f4b2c, 0.1)
-    bg.fillCircle(layout.cx + 90, GAME_CONFIG.height - 180, 200)
+    bg.fillCircle(layout.cx + 90, layout.height - 180, 200)
   }
 
   private createSummary(layout: ViewportLayout): void {

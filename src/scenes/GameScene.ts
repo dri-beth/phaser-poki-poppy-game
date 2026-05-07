@@ -153,14 +153,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createBackground(): void {
+    const layout = getViewportLayout()
     const bg = this.add.graphics()
     bg.fillGradientStyle(0xf7ead4, 0xf7ead4, 0xe9f4dc, 0xe7f0ff, 1)
-    bg.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height)
+    bg.fillRect(0, 0, layout.width, layout.height)
 
     bg.fillStyle(0xffffff, 0.12)
-    bg.fillCircle(CX - 120, 150, 170)
+    bg.fillCircle(layout.cx - 120, 150, 170)
     bg.fillStyle(0xffb18f, 0.1)
-    bg.fillCircle(CX + 110, GAME_CONFIG.height - 180, 210)
+    bg.fillCircle(layout.cx + 110, layout.height - 180, 210)
   }
 
   private createParticles(): void {

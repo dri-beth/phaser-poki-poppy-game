@@ -12,11 +12,7 @@
 import { ProgressBar } from '../components/ProgressBar'
 import { config } from '../core/Config'
 import { pokiBridge } from '../lib/poki/PokiBridge'
-import { GAME_CONFIG } from '../data/gameConfig'
 import { BALANCING } from '../data/balancing'
-
-const CX = GAME_CONFIG.width / 2
-const CY = GAME_CONFIG.height / 2
 
 export class PreloadScene extends Phaser.Scene {
   private progressBar!: ProgressBar
@@ -30,7 +26,9 @@ export class PreloadScene extends Phaser.Scene {
   preload(): void {
     this.cameras.main.setBackgroundColor(config.game.backgroundColor)
 
-    this.createLoadingUI()
+    const cx = this.scale.width / 2
+    const cy = this.scale.height / 2
+    this.createLoadingUI(cx, cy)
     this.registerLoadEvents()
     this.loadAssets()
   }
@@ -45,9 +43,9 @@ export class PreloadScene extends Phaser.Scene {
     )
   }
 
-  private createLoadingUI(): void {
+  private createLoadingUI(cx: number, cy: number): void {
     this.add
-      .text(CX, CY - 100, config.game.title, {
+      .text(cx, cy - 100, config.game.title, {
         fontSize: '32px',
         fontFamily: 'Arial, sans-serif',
         color: '#5f4b2c',
@@ -57,7 +55,7 @@ export class PreloadScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.loadingText = this.add
-      .text(CX, CY - 20, 'Loading...', {
+      .text(cx, cy - 20, 'Loading...', {
         fontSize: '18px',
         fontFamily: 'Arial, sans-serif',
         color: '#7a6141',
@@ -67,8 +65,8 @@ export class PreloadScene extends Phaser.Scene {
 
     this.progressBar = new ProgressBar({
       scene: this,
-      x: CX,
-      y: CY + 20,
+      x: cx,
+      y: cy + 20,
       width: 300,
       height: 20,
       trackColor: 0xd8c4a1,
@@ -77,7 +75,7 @@ export class PreloadScene extends Phaser.Scene {
     })
 
     this.percentText = this.add
-      .text(CX, CY + 60, '0%', {
+      .text(cx, cy + 60, '0%', {
         fontSize: '16px',
         fontFamily: 'Arial, sans-serif',
         color: '#7a6141',
@@ -86,7 +84,7 @@ export class PreloadScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.add
-      .text(CX, GAME_CONFIG.height - 30, `v${config.game.version}`, {
+      .text(cx, this.scale.height - 30, `v${config.game.version}`, {
         fontSize: '12px',
         fontFamily: 'Arial, sans-serif',
         color: '#8c7352',

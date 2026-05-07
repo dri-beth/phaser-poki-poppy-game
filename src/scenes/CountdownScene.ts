@@ -3,7 +3,6 @@
  * Simple 3-2-1-GO transition before Fruit Pop gameplay begins.
  */
 
-import { GAME_CONFIG } from '../data/gameConfig'
 import { BALANCING, FRUIT_POP_MAX_LEVEL, getFruitPopLevel } from '../data/balancing'
 import { AudioManager } from '../core/AudioManager'
 import { config } from '../core/Config'
@@ -39,7 +38,7 @@ export class CountdownScene extends Phaser.Scene {
   private createBackdrop(layout: ViewportLayout): void {
     const bg = this.add.graphics()
     bg.fillGradientStyle(0xf7ead4, 0xf7ead4, 0xe9f4dc, 0xe7f0ff, 1)
-    bg.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height)
+    bg.fillRect(0, 0, layout.width, layout.height)
 
     const fruit = this.add.image(layout.cx, layout.isLandscape ? 216 : layout.cy - 40, 'fruit')
     fruit.setDisplaySize(220, 220)
