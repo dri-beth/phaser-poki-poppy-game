@@ -8,6 +8,7 @@ import { BALANCING, FRUIT_POP_MAX_LEVEL, getFruitPopLevel } from '../data/balanc
 import { AudioManager } from '../core/AudioManager'
 import { config } from '../core/Config'
 import { getViewportLayout, type ViewportLayout } from '../core/ViewportLayout'
+import { FRUIT_TEXTURE_KEYS } from '../data/fruitAssets'
 import type { FruitPopRunData } from '../types/fruitPop'
 
 const STEPS = ['3', '2', '1', 'GO!']
@@ -17,6 +18,7 @@ export class CountdownScene extends Phaser.Scene {
   private levelLabel = 'Warmup'
   private stepText!: Phaser.GameObjects.Text
   private stepIndex = 0
+  private defaultFruitTexture: string = FRUIT_TEXTURE_KEYS.midripe
 
   constructor() {
     super({ key: 'CountdownScene' })
@@ -31,6 +33,7 @@ export class CountdownScene extends Phaser.Scene {
   create(): void {
     const layout = getViewportLayout()
     this.cameras.main.setBackgroundColor(config.game.backgroundColor)
+    this.defaultFruitTexture = this.getDefaultFruitTexture()
     this.createBackdrop(layout)
     this.createText(layout)
     this.runSequence()
@@ -41,7 +44,7 @@ export class CountdownScene extends Phaser.Scene {
     bg.fillGradientStyle(0xf7ead4, 0xf7ead4, 0xe9f4dc, 0xe7f0ff, 1)
     bg.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height)
 
-    const fruit = this.add.image(layout.cx, layout.isLandscape ? 216 : layout.cy - 40, 'fruit')
+    const fruit = this.add.image(layout.cx, layout.isLandscape ? 216 : layout.cy - 40, this.defaultFruitTexture)
     fruit.setDisplaySize(220, 220)
     fruit.setAlpha(0.16)
     fruit.setTint(0xf26b5d)
@@ -135,5 +138,10 @@ export class CountdownScene extends Phaser.Scene {
     }
 
     showStep()
+  }
+
+  private getDefaultFruitTexture(): string {
+    if (this.textures.exists(FRUIT_TEXTURE_KEYS.midripe)) return FRUIT_TEXTURE_KEYS.midripe
+    return FRUIT_TEXTURE_KEYS.legacy
   }
 }

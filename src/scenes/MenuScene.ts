@@ -17,6 +17,7 @@ import { config } from '../core/Config'
 import { ScaleManager } from '../core/ScaleManager'
 import { getViewportLayout, type ViewportLayout } from '../core/ViewportLayout'
 import { BALANCING } from '../data/balancing'
+import { FRUIT_TEXTURE_KEYS } from '../data/fruitAssets'
 import { pokiBridge } from '../lib/poki/PokiBridge'
 
 const BACKDROP_COLORS = [0xffc857, 0xff8c42, 0xf26b5d, 0x7ccf5b, 0x89c2ff]
@@ -28,6 +29,7 @@ export class MenuScene extends Phaser.Scene {
   private spaceKey!: Phaser.Input.Keyboard.Key
   private escapeKey!: Phaser.Input.Keyboard.Key
   private menuProfile!: MenuProfile
+  private defaultFruitTexture: string = FRUIT_TEXTURE_KEYS.midripe
 
   constructor() {
     super({ key: 'MenuScene' })
@@ -39,6 +41,7 @@ export class MenuScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(config.game.backgroundColor)
     this.cameras.main.fadeIn(BALANCING.sceneFadeDuration, 0, 0, 0)
     pokiBridge.init(this)
+    this.defaultFruitTexture = this.getDefaultFruitTexture()
 
     this.createBackground(layout)
     this.createBackdropFruitGrid(layout)
@@ -77,6 +80,7 @@ export class MenuScene extends Phaser.Scene {
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const fruit = this.add.image(startX + col * gapX, startY + row * gapY, 'fruit')
+        fruit.setTexture(this.defaultFruitTexture)
         fruit.setDisplaySize(fruitSize, fruitSize)
         fruit.setAlpha(0.18)
         fruit.setTint(BACKDROP_COLORS[(row + col) % BACKDROP_COLORS.length])
@@ -276,6 +280,11 @@ export class MenuScene extends Phaser.Scene {
       subtitleFontSize: isCompact ? '18px' : '20px',
       titleFontSize: layout.isLandscape ? (isTightLandscape ? '48px' : '50px') : isCompact ? '50px' : '54px'
     }
+  }
+
+  private getDefaultFruitTexture(): string {
+    if (this.textures.exists(FRUIT_TEXTURE_KEYS.midripe)) return FRUIT_TEXTURE_KEYS.midripe
+    return FRUIT_TEXTURE_KEYS.legacy
   }
 }
 

@@ -14,6 +14,7 @@ import { config } from '../core/Config'
 import { pokiBridge } from '../lib/poki/PokiBridge'
 import { GAME_CONFIG } from '../data/gameConfig'
 import { BALANCING } from '../data/balancing'
+import { FRUIT_TEXTURE_KEYS } from '../data/fruitAssets'
 
 const CX = GAME_CONFIG.width / 2
 const CY = GAME_CONFIG.height / 2
@@ -102,6 +103,7 @@ export class PreloadScene extends Phaser.Scene {
     })
 
     this.load.on(Phaser.Loader.Events.COMPLETE, () => {
+      this.ensureFruitFallbackTextures()
       this.loadingText.setText('Ready!')
       this.progressBar.setValue(1)
       this.percentText.setText('100%')
@@ -112,6 +114,7 @@ export class PreloadScene extends Phaser.Scene {
     const fruitSize = 96
     const fruitHalf = fruitSize / 2
 
+    // Legacy fallback used across the project.
     const fruitGfx = this.make.graphics({ x: 0, y: 0 }, false)
     fruitGfx.fillStyle(0xffffff, 1)
     fruitGfx.fillCircle(fruitHalf, fruitHalf + 2, fruitHalf - 10)
@@ -121,8 +124,14 @@ export class PreloadScene extends Phaser.Scene {
     fruitGfx.fillRoundedRect(fruitHalf - 4, 10, 8, 18, 3)
     fruitGfx.fillStyle(0xffffff, 0.9)
     fruitGfx.fillEllipse(fruitHalf + 12, 16, 18, 10)
-    fruitGfx.generateTexture('fruit', fruitSize, fruitSize)
+    fruitGfx.generateTexture(FRUIT_TEXTURE_KEYS.legacy, fruitSize, fruitSize)
     fruitGfx.destroy()
+
+    // External art from Game Studio should use these exact filenames.
+    // When files exist under public/assets/, they override the generated fallback.
+    this.load.image(FRUIT_TEXTURE_KEYS.unripe, 'assets/fruit_unripe.png')
+    this.load.image(FRUIT_TEXTURE_KEYS.midripe, 'assets/fruit_midripe.png')
+    this.load.image(FRUIT_TEXTURE_KEYS.ripe, 'assets/fruit_ripe.png')
 
     const splatSize = 96
     const splatHalf = splatSize / 2
@@ -149,5 +158,33 @@ export class PreloadScene extends Phaser.Scene {
     this.load.audio('sfx_rotten', 'assets/sfx_rotten.wav')
     this.load.audio('sfx_win', 'assets/sfx_win.wav')
     this.load.audio('sfx_lose', 'assets/sfx_lose.wav')
+  }
+
+  private ensureFruitFallbackTextures(): void {
+    if (!this.textures.exists(FRUIT_TEXTURE_KEYS.midripe)) {
+      this.generateFruitTexture(FRUIT_TEXTURE_KEYS.midripe, 0xffcf5a, 0xe6b74a, 0xffe59a)
+    }
+    if (!this.textures.exists(FRUIT_TEXTURE_KEYS.unripe)) {
+      this.generateFruitTexture(FRUIT_TEXTURE_KEYS.unripe, 0x7ccf5b, 0x76bf53, 0x9ee06a)
+    }
+    if (!this.textures.exists(FRUIT_TEXTURE_KEYS.ripe)) {
+      this.generateFruitTexture(FRUIT_TEXTURE_KEYS.ripe, 0xf26b5d, 0xd95a4e, 0xff9788)
+    }
+  }
+
+  private generateFruitTexture(key: string, bodyColor: number, stemColor: number, leafColor: number): void {
+    const size = 96
+    const half = size / 2
+    const gfx = this.make.graphics({ x: 0, y: 0 }, false)
+    gfx.fillStyle(bodyColor, 1)
+    gfx.fillCircle(half, half + 2, half - 10)
+    gfx.fillStyle(0xffffff, 0.24)
+    gfx.fillCircle(half - 18, half - 18, 14)
+    gfx.fillStyle(stemColor, 1)
+    gfx.fillRoundedRect(half - 4, 10, 8, 18, 3)
+    gfx.fillStyle(leafColor, 0.92)
+    gfx.fillEllipse(half + 12, 16, 18, 10)
+    gfx.generateTexture(key, size, size)
+    gfx.destroy()
   }
 }

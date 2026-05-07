@@ -27,6 +27,7 @@ import {
   getFruitPopLevel,
   getFruitPopProgress
 } from '../data/balancing'
+import { FRUIT_TEXTURE_KEYS, getFruitStateTextureKey } from '../data/fruitAssets'
 import type {
   FruitPopOutcome,
   FruitPopGrade,
@@ -308,7 +309,7 @@ export class GameScene extends Phaser.Scene {
         const sprite = this.add.image(x, cellY, 'fruit')
         sprite.setDisplaySize(this.fruitDisplaySize, this.fruitDisplaySize)
         sprite.setDepth(10)
-        sprite.setTint(FRUIT_TINTS[state])
+        sprite.setTexture(this.getFruitTextureKey(state))
         sprite.setAngle(Phaser.Math.Between(-8, 8))
 
         const hitArea = this.add.zone(x, cellY, this.fruitHitSize, this.fruitHitSize)
@@ -373,7 +374,7 @@ export class GameScene extends Phaser.Scene {
     cell.state = state
 
     const fruit = cell.sprite
-    fruit.setTint(FRUIT_TINTS[state])
+    fruit.setTexture(this.getFruitTextureKey(state))
 
     const wobble = Math.sin(cell.elapsedMs * 0.006 + cell.wobblePhase)
     let scale = cell.baseScale
@@ -814,5 +815,13 @@ export class GameScene extends Phaser.Scene {
     this.fruitDisplaySize = Math.max(28, Math.round(boardLayout.fruitSize * scaleToFit))
     this.fruitGridGap = Math.max(4, Math.round(boardLayout.gridGap * scaleToFit))
     this.fruitHitSize = Math.max(34, Math.round(boardLayout.hitSize * scaleToFit))
+  }
+
+  private getFruitTextureKey(state: FruitState): string {
+    const key = getFruitStateTextureKey(state)
+    if (this.textures.exists(key)) {
+      return key
+    }
+    return this.textures.exists(FRUIT_TEXTURE_KEYS.legacy) ? FRUIT_TEXTURE_KEYS.legacy : key
   }
 }

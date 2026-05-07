@@ -1,3 +1,4 @@
+import { FRUIT_TEXTURE_KEYS } from '../data/fruitAssets'
 export type RipenessStageToken = 'green' | 'yellow' | 'orange' | 'red' | 'rotten'
 
 export interface RipenessGuideConfig {
@@ -16,6 +17,14 @@ const STAGE_TINT: Record<RipenessStageToken, number> = {
   orange: 0xffa94d,
   red: 0xf26b5d,
   rotten: 0x7a5c46
+}
+
+const STAGE_TEXTURE: Record<RipenessStageToken, string> = {
+  green: FRUIT_TEXTURE_KEYS.unripe,
+  yellow: FRUIT_TEXTURE_KEYS.midripe,
+  orange: FRUIT_TEXTURE_KEYS.midripe,
+  red: FRUIT_TEXTURE_KEYS.ripe,
+  rotten: FRUIT_TEXTURE_KEYS.midripe
 }
 
 function isStageToken(value: string): value is RipenessStageToken {
@@ -76,9 +85,18 @@ export class RipenessGuide extends Phaser.GameObjects.Container {
       const isTarget = token === this.targetStage
       const isEarly = !isTarget && token !== 'rotten'
 
-      const sprite = this.scene.add.image(x, 0, 'fruit')
+      const textureKey = this.scene.textures.exists(STAGE_TEXTURE[token])
+        ? STAGE_TEXTURE[token]
+        : FRUIT_TEXTURE_KEYS.legacy
+      const sprite = this.scene.add.image(x, 0, textureKey)
       sprite.setDisplaySize(isTarget ? targetSize : isEarly ? smallSize : iconSize, isTarget ? targetSize : isEarly ? smallSize : iconSize)
-      sprite.setTint(STAGE_TINT[token])
+      if (textureKey === FRUIT_TEXTURE_KEYS.legacy) {
+        sprite.setTint(STAGE_TINT[token])
+      } else if (token === 'rotten') {
+        sprite.setTint(0x8b6e57)
+      } else if (token === 'orange') {
+        sprite.setTint(0xffa94d)
+      }
       sprite.setAlpha(token === 'rotten' ? 0.56 : isEarly ? 0.62 : 1)
       this.add(sprite)
       this.animatedTargets.push(sprite)
