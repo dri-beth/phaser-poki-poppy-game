@@ -12,7 +12,7 @@
 
 import { AudioManager } from '../core/AudioManager'
 import { pokiBridge } from '../lib/poki/PokiBridge'
-import { getViewportLayout } from '../core/ViewportLayout'
+import { getViewportLayout, type ViewportLayout } from '../core/ViewportLayout'
 import { ComboWidget } from '../components/ComboWidget'
 import { GameTopHud } from '../components/GameTopHud'
 import { RipeFruitCue } from '../components/RipeFruitCue'
@@ -90,6 +90,7 @@ export class GameScene extends Phaser.Scene {
   private popParticles: Phaser.GameObjects.Particles.ParticleEmitter | null = null
   private splatterPool: SplatterEntry[] = []
   private popupPool: PopupEntry[] = []
+  private backgroundGraphics: Phaser.GameObjects.Graphics | null = null
 
   private topHud!: GameTopHud
   private ripeCue!: RipeFruitCue
@@ -112,6 +113,10 @@ export class GameScene extends Phaser.Scene {
   private boardCenterX = CX
   private boardCenterY = GAME_CONFIG.height / 2
   private ripeCueBaseSize = 42
+  private fruitDisplaySize = 42
+  private fruitHitSize = 48
+  private fruitGridGap = 10
+  private resizeHandler: ((gameSize: Phaser.Structs.Size) => void) | null = null
 
   constructor() {
     super({ key: 'GameScene' })
@@ -144,12 +149,13 @@ export class GameScene extends Phaser.Scene {
     this.firstInteractionHandler = null
     this.comboSystem = new ComboSystem(this.levelConfig.comboResetMs)
     this.ripeCue = new RipeFruitCue({ scene: this, animationEnabled: true })
+    this.registerResizeHandler()
 
     this.createBackground()
     this.createParticles()
     this.createPools()
-    this.createHUD()
     this.createFruitBoard()
+    this.createHUD()
     this.refreshRipeCue()
     this.updateHUD(true)
     pokiBridge.init(this)
@@ -188,22 +194,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createBackground(): void {
+    this.backgroundGraphics?.destroy()
+    const width = this.cameras.main.width
+    const height = this.cameras.main.height
     const bg = this.add.graphics()
     bg.fillGradientStyle(0xf7ead4, 0xf7ead4, 0xe9f4dc, 0xe7f0ff, 1)
-    bg.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height)
-
+    bg.fillRect(0, 0, width, height)
     bg.fillStyle(0xffffff, 0.12)
-    bg.fillCircle(CX - 120, 150, 170)
+    bg.fillCircle(width * 0.24, height * 0.2, Math.min(170, width * 0.4))
     bg.fillStyle(0xffb18f, 0.1)
-    bg.fillCircle(CX + 110, GAME_CONFIG.height - 180, 210)
+    bg.fillCircle(width * 0.78, height * 0.82, Math.min(210, width * 0.48))
+    bg.setDepth(0)
+    this.backgroundGraphics = bg
   }
-  private createPools(): void {
-    for (let i = 0; i < BALANCING.splatterPoolSize; i++) {
-      const image = this.add.image(0, 0, 'splatter')
-      image.setVisible(false)
-      image.setDepth(30)
-      this.splatterPool.push({ image, active: false })
-    }
 
   private createParticles(): void {
     this.popParticles = this.add.particles(0, 0, 'particle', {
@@ -218,20 +221,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createHUD(): void {
-    const layout = getViewportLayout()
+    const layout = getViewportLayout(this)
     const progress = getFruitPopProgress(this.level)
-    const panelWidth = Math.min(layout.width - layout.safeMargin * 2, layout.isLandscape ? 196 : 198)
-    const panelHeight = layout.isLandscape ? 112 : 116
-    const panelX = layout.safeMargin + panelWidth / 2
-    const panelY = layout.safeMargin + panelHeight / 2 + (layout.isLandscape ? 0 : 2)
+    const panelX = layout.hudRect.x + layout.hudRect.width / 2
+    const panelY = layout.hudRect.y + layout.hudRect.height / 2
 
     this.topHud = new GameTopHud({
       scene: this,
       x: panelX,
       y: panelY,
-      width: panelWidth,
-      height: panelHeight,
-      compact: layout.isLandscape,
+      width: layout.hudRect.width,
+      height: layout.hudRect.height,
+      compact: layout.profile !== 'normal',
+      layoutVariant: layout.profile === 'normal' ? 'normal' : 'compact',
+      fontScale: layout.profile === 'compact' ? 1.02 : layout.profile === 'landscapeTight' ? 0.94 : 1.06,
       level: this.level,
       progress,
       dirtValue: this.dirtMeter,
@@ -240,13 +243,13 @@ export class GameScene extends Phaser.Scene {
       perfectCount: this.perfectPops
     })
 
-    this.comboWidgetX = layout.cx
-    this.comboWidgetY = panelY + panelHeight / 2 + 26
+    this.comboWidgetX = layout.comboAnchor.x
+    this.comboWidgetY = layout.comboAnchor.y
     this.comboWidget = new ComboWidget({
       scene: this,
       x: this.comboWidgetX,
       y: this.comboWidgetY,
-      width: layout.isLandscape ? 184 : 220,
+      width: layout.profile === 'landscapeTight' ? 176 : layout.profile === 'compact' ? 198 : 220,
       showMeter: true,
       animationEnabled: true
     })
@@ -280,40 +283,35 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createFruitBoard(): void {
-    const viewport = getViewportLayout()
+    const viewport = getViewportLayout(this)
     const boardCols = this.levelConfig.boardCols
     const boardRows = this.levelConfig.boardRows
-    const layout = getFruitPopBoardLayout(boardCols, boardRows)
-    const availableWidth = viewport.boardRight - viewport.boardLeft
-    const availableHeight = viewport.boardBottom - viewport.boardTop
-    const scaleToFit = Math.min(1, availableWidth / layout.boardSpanX, availableHeight / layout.boardSpanY)
-    const fruitSize = Math.max(28, Math.round(layout.fruitSize * scaleToFit))
-    const gridGap = Math.max(4, Math.round(layout.gridGap * scaleToFit))
-    const hitSize = Math.max(34, Math.round(layout.hitSize * scaleToFit))
-    const spanX = boardCols * fruitSize + (boardCols - 1) * gridGap
-    const spanY = boardRows * fruitSize + (boardRows - 1) * gridGap
-    const startX = viewport.boardCenterX - spanX / 2 + fruitSize / 2
-    const startY = viewport.boardTop + (availableHeight - spanY) / 2 + fruitSize / 2
-    this.boardCenterX = startX + ((boardCols - 1) * (fruitSize + gridGap)) / 2
-    this.boardCenterY = startY + ((boardRows - 1) * (fruitSize + gridGap)) / 2
-    this.ripeCueBaseSize = fruitSize
+    const boardLayout = getFruitPopBoardLayout(boardCols, boardRows)
+    this.computeBoardMetrics(viewport, boardLayout)
+    const spanX = boardCols * this.fruitDisplaySize + (boardCols - 1) * this.fruitGridGap
+    const spanY = boardRows * this.fruitDisplaySize + (boardRows - 1) * this.fruitGridGap
+    const startX = viewport.boardRect.x + (viewport.boardRect.width - spanX) / 2 + this.fruitDisplaySize / 2
+    const startY = viewport.boardRect.y + (viewport.boardRect.height - spanY) / 2 + this.fruitDisplaySize / 2
+    this.boardCenterX = startX + ((boardCols - 1) * (this.fruitDisplaySize + this.fruitGridGap)) / 2
+    this.boardCenterY = startY + ((boardRows - 1) * (this.fruitDisplaySize + this.fruitGridGap)) / 2
+    this.ripeCueBaseSize = this.fruitDisplaySize
 
     this.fruitsRemaining = boardCols * boardRows
 
     for (let row = 0; row < boardRows; row++) {
       for (let col = 0; col < boardCols; col++) {
-        const x = startX + col * (fruitSize + gridGap)
-        const cellY = startY + row * (fruitSize + gridGap)
+        const x = startX + col * (this.fruitDisplaySize + this.fruitGridGap)
+        const cellY = startY + row * (this.fruitDisplaySize + this.fruitGridGap)
         const seed = this.getInitialFruitSeed()
         const initialElapsed = seed.elapsedMs
         const state = seed.state
         const sprite = this.add.image(x, cellY, 'fruit')
-        sprite.setDisplaySize(fruitSize, fruitSize)
+        sprite.setDisplaySize(this.fruitDisplaySize, this.fruitDisplaySize)
         sprite.setDepth(10)
         sprite.setTint(FRUIT_TINTS[state])
         sprite.setAngle(Phaser.Math.Between(-8, 8))
 
-        const hitArea = this.add.zone(x, cellY, hitSize, hitSize)
+        const hitArea = this.add.zone(x, cellY, this.fruitHitSize, this.fruitHitSize)
         hitArea.setDepth(11)
         hitArea.setInteractive({ useHandCursor: true })
 
@@ -677,8 +675,14 @@ export class GameScene extends Phaser.Scene {
   shutdown(): void {
     pokiBridge.gameplayStop('scene_shutdown')
     this.disarmFirstInputGate()
+    if (this.resizeHandler) {
+      this.scale.off('resize', this.resizeHandler, this)
+      this.resizeHandler = null
+    }
     this.comboFx?.destroy()
     this.comboFx = null
+    this.backgroundGraphics?.destroy()
+    this.backgroundGraphics = null
     if (this.ripeCue) {
       this.ripeCue.destroy()
     }
@@ -747,5 +751,68 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.ripeCue.show(primary.sprite.x, primary.sprite.y, this.ripeCueBaseSize)
+  }
+
+  private registerResizeHandler(): void {
+    if (this.resizeHandler) return
+    this.resizeHandler = () => this.relayoutForViewport()
+    this.scale.on('resize', this.resizeHandler, this)
+  }
+
+  private relayoutForViewport(): void {
+    if (this.gameEnded) return
+    const layout = getViewportLayout(this)
+    this.createBackground()
+    this.relayoutHud(layout)
+    this.relayoutFruitBoard(layout)
+    this.refreshRipeCue()
+  }
+
+  private relayoutHud(layout: ViewportLayout): void {
+    const panelX = layout.hudRect.x + layout.hudRect.width / 2
+    const panelY = layout.hudRect.y + layout.hudRect.height / 2
+    this.topHud.setLayout({
+      x: panelX,
+      y: panelY,
+      width: layout.hudRect.width,
+      height: layout.hudRect.height,
+      variant: layout.profile === 'normal' ? 'normal' : 'compact',
+      fontScale: layout.profile === 'compact' ? 1.02 : layout.profile === 'landscapeTight' ? 0.94 : 1.06
+    })
+
+    this.comboWidgetX = layout.comboAnchor.x
+    this.comboWidgetY = layout.comboAnchor.y
+    if (this.comboWidget) {
+      this.comboWidget.setPosition(this.comboWidgetX, this.comboWidgetY)
+    }
+  }
+
+  private relayoutFruitBoard(layout: ViewportLayout): void {
+    const boardLayout = getFruitPopBoardLayout(this.levelConfig.boardCols, this.levelConfig.boardRows)
+    this.computeBoardMetrics(layout, boardLayout)
+    const spanX = this.levelConfig.boardCols * this.fruitDisplaySize + (this.levelConfig.boardCols - 1) * this.fruitGridGap
+    const spanY = this.levelConfig.boardRows * this.fruitDisplaySize + (this.levelConfig.boardRows - 1) * this.fruitGridGap
+    const startX = layout.boardRect.x + (layout.boardRect.width - spanX) / 2 + this.fruitDisplaySize / 2
+    const startY = layout.boardRect.y + (layout.boardRect.height - spanY) / 2 + this.fruitDisplaySize / 2
+    this.boardCenterX = startX + ((this.levelConfig.boardCols - 1) * (this.fruitDisplaySize + this.fruitGridGap)) / 2
+    this.boardCenterY = startY + ((this.levelConfig.boardRows - 1) * (this.fruitDisplaySize + this.fruitGridGap)) / 2
+    this.ripeCueBaseSize = this.fruitDisplaySize
+
+    for (let i = 0; i < this.fruits.length; i++) {
+      const cell = this.fruits[i]
+      const x = startX + cell.col * (this.fruitDisplaySize + this.fruitGridGap)
+      const y = startY + cell.row * (this.fruitDisplaySize + this.fruitGridGap)
+      cell.sprite.setPosition(x, y).setDisplaySize(this.fruitDisplaySize, this.fruitDisplaySize)
+      cell.hitArea.setPosition(x, y).setSize(this.fruitHitSize, this.fruitHitSize)
+    }
+  }
+
+  private computeBoardMetrics(viewport: ViewportLayout, boardLayout: ReturnType<typeof getFruitPopBoardLayout>): void {
+    const availableWidth = viewport.boardRect.width
+    const availableHeight = viewport.boardRect.height
+    const scaleToFit = Math.min(1, availableWidth / boardLayout.boardSpanX, availableHeight / boardLayout.boardSpanY)
+    this.fruitDisplaySize = Math.max(28, Math.round(boardLayout.fruitSize * scaleToFit))
+    this.fruitGridGap = Math.max(4, Math.round(boardLayout.gridGap * scaleToFit))
+    this.fruitHitSize = Math.max(34, Math.round(boardLayout.hitSize * scaleToFit))
   }
 }

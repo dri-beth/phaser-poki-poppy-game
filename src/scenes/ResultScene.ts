@@ -7,7 +7,7 @@ import { UIButton } from '../components/UIButton'
 import { config } from '../core/Config'
 import { getViewportLayout, type ViewportLayout } from '../core/ViewportLayout'
 import { GAME_CONFIG } from '../data/gameConfig'
-import { BALANCING, FRUIT_POP_MAX_LEVEL, getFruitPopLevel } from '../data/balancing'
+import { BALANCING, FRUIT_POP_MAX_LEVEL } from '../data/balancing'
 import { formatScore } from '../utils/helpers'
 import type { FruitPopResultData } from '../types/fruitPop'
 
@@ -28,6 +28,8 @@ export class ResultScene extends Phaser.Scene {
   private resultData: FruitPopResultData = DEFAULT_RESULT
   private enterKey!: Phaser.Input.Keyboard.Key
   private rKey!: Phaser.Input.Keyboard.Key
+  private confettiEmitter: Phaser.GameObjects.Particles.ParticleEmitter | null = null
+  private confettiTimer: Phaser.Time.TimerEvent | null = null
 
   constructor() {
     super({ key: 'ResultScene' })
@@ -41,7 +43,7 @@ export class ResultScene extends Phaser.Scene {
   }
 
   create(): void {
-    const layout = getViewportLayout()
+    const layout = getViewportLayout(this)
     this.cameras.main.setBackgroundColor(config.game.backgroundColor)
     this.cameras.main.fadeIn(BALANCING.sceneFadeDuration, 0, 0, 0)
 
@@ -49,6 +51,7 @@ export class ResultScene extends Phaser.Scene {
     this.createSummary(layout)
     this.createButtons(layout)
     this.setupKeyboard()
+    this.startConfetti()
 
     // TODO: analytics hook - result_screen_shown
   }
@@ -76,7 +79,6 @@ export class ResultScene extends Phaser.Scene {
     const { level, outcome, reason, score, perfectPops, highScore, isNewHighScore, grade } =
       this.resultData
     const isWin = outcome === 'win'
-    const levelConfig = getFruitPopLevel(level)
     const headline = isWin ? 'HARVEST COMPLETE' : 'ROUND OVER'
     const accent = isWin ? '#7ccf5b' : '#d95a4e'
 
@@ -90,56 +92,38 @@ export class ResultScene extends Phaser.Scene {
         fontFamily: 'Arial, sans-serif',
         color: '#7a3e2c',
         fontStyle: 'bold',
-        resolution: 2
+        resolution: 3
       })
       .setOrigin(0.5)
 
     this.add
-      .text(layout.cx, topY + 30, levelConfig.label, {
-        fontSize: '18px',
-        fontFamily: 'Arial, sans-serif',
-        color: '#8c7352',
-        resolution: 2
-      })
-      .setOrigin(0.5)
-
-    this.add
-      .text(layout.cx, topY + 56, `BOARD ${levelConfig.boardLabel}`, {
-        fontSize: '16px',
-        fontFamily: 'Arial, sans-serif',
-        color: '#8c7352',
-        resolution: 2
-      })
-      .setOrigin(0.5)
-
-    this.add
-      .text(layout.cx, topY + 82, isWin ? 'WIN' : 'LOSE', {
+      .text(layout.cx, topY + 38, isWin ? 'WIN' : 'LOSE', {
         fontSize: '42px',
         fontFamily: 'Arial, sans-serif',
         color: accent,
         fontStyle: 'bold',
-        resolution: 2,
+        resolution: 3,
         stroke: '#ffffff',
         strokeThickness: 4
       })
       .setOrigin(0.5)
 
     this.add
-      .text(layout.cx, topY + 128, headline, {
+      .text(layout.cx, topY + 84, headline, {
         fontSize: '24px',
         fontFamily: 'Arial, sans-serif',
         color: '#7a3e2c',
         fontStyle: 'bold',
-        resolution: 2
+        resolution: 3
       })
       .setOrigin(0.5)
 
     this.add
-      .text(layout.cx, topY + 160, reason, {
+      .text(layout.cx, topY + 116, reason, {
         fontSize: '18px',
         fontFamily: 'Arial, sans-serif',
         color: '#8c7352',
-        resolution: 2
+        resolution: 3
       })
       .setOrigin(0.5)
 
@@ -154,7 +138,7 @@ export class ResultScene extends Phaser.Scene {
         fontSize: '16px',
         fontFamily: 'Arial, sans-serif',
         color: '#8c7352',
-        resolution: 2
+        resolution: 3
       })
       .setOrigin(0.5)
 
@@ -164,7 +148,7 @@ export class ResultScene extends Phaser.Scene {
         fontFamily: 'Arial, sans-serif',
         color: accent,
         fontStyle: 'bold',
-        resolution: 2
+        resolution: 3
       })
       .setOrigin(0.5)
 
@@ -205,7 +189,7 @@ export class ResultScene extends Phaser.Scene {
 
     if (isNewHighScore) {
       const banner = this.add
-        .text(layout.cx, cardY + 176, 'NEW BEST!', {
+        .text(layout.cx, cardY + 198, 'NEW BEST!', {
           fontSize: '20px',
           fontFamily: 'Arial, sans-serif',
           color: '#f26b5d',
@@ -225,7 +209,7 @@ export class ResultScene extends Phaser.Scene {
       })
     } else if (highScore > 0) {
       this.add
-        .text(layout.cx, cardY + 176, `Best: ${formatScore(highScore)}`, {
+        .text(layout.cx, cardY + 206, `Best: ${formatScore(highScore)}`, {
           fontSize: '16px',
           fontFamily: 'Arial, sans-serif',
           color: '#8c7352',
@@ -233,6 +217,35 @@ export class ResultScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
     }
+  }
+
+  private startConfetti(): void {
+    if (this.resultData.outcome !== 'win') {
+      return
+    }
+
+    this.confettiEmitter = this.add.particles(0, 0, 'particle', {
+      speedX: { min: -50, max: 50 },
+      speedY: { min: 80, max: 180 },
+      scale: { start: 1.4, end: 0.2 },
+      alpha: { start: 0.95, end: 0 },
+      lifespan: { min: 700, max: 1200 },
+      quantity: 0,
+      emitting: false
+    })
+    this.confettiEmitter.setDepth(25)
+
+    this.scheduleNextConfettiBurst()
+  }
+
+  private scheduleNextConfettiBurst(): void {
+    this.confettiTimer = this.time.delayedCall(Phaser.Math.Between(1000, 2000), () => {
+      if (!this.confettiEmitter) return
+      const burstX = Phaser.Math.Between(24, Math.floor(this.cameras.main.width - 24))
+      const burstY = Phaser.Math.Between(24, Math.floor(this.cameras.main.height * 0.5))
+      this.confettiEmitter.explode(Phaser.Math.Between(14, 24), burstX, burstY)
+      this.scheduleNextConfettiBurst()
+    })
   }
 
   private createButtons(layout: ViewportLayout): void {
@@ -300,5 +313,9 @@ export class ResultScene extends Phaser.Scene {
   shutdown(): void {
     this.enterKey?.destroy()
     this.rKey?.destroy()
+    this.confettiTimer?.destroy()
+    this.confettiTimer = null
+    this.confettiEmitter?.destroy()
+    this.confettiEmitter = null
   }
 }

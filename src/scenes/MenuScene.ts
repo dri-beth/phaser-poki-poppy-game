@@ -16,7 +16,6 @@ import { SaveManager, SAVE_KEYS } from '../core/SaveManager'
 import { config } from '../core/Config'
 import { ScaleManager } from '../core/ScaleManager'
 import { getViewportLayout, type ViewportLayout } from '../core/ViewportLayout'
-import { GAME_CONFIG } from '../data/gameConfig'
 import { BALANCING } from '../data/balancing'
 import { pokiBridge } from '../lib/poki/PokiBridge'
 
@@ -53,28 +52,32 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private createBackground(layout: ViewportLayout): void {
+    const width = this.cameras.main.width
+    const height = this.cameras.main.height
     const bg = this.add.graphics()
     bg.fillGradientStyle(0xf7ead4, 0xf7ead4, 0xe9f4dc, 0xe7f0ff, 1)
-    bg.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height)
+    bg.fillRect(0, 0, width, height)
 
     bg.fillStyle(0xffffff, 0.1)
-    bg.fillCircle(layout.cx - 140, 160, 180)
+    bg.fillCircle(layout.cx - width * 0.28, height * 0.2, Math.min(190, width * 0.42))
     bg.fillStyle(0xffb18f, 0.08)
-    bg.fillCircle(layout.cx + 120, GAME_CONFIG.height - 160, 210)
+    bg.fillCircle(layout.cx + width * 0.24, height - height * 0.18, Math.min(230, width * 0.48))
   }
 
   private createBackdropFruitGrid(layout: ViewportLayout): void {
     const cols = 4
     const rows = 3
-    const startX = layout.isLandscape ? 42 : this.menuProfile.isCompact ? 70 : 82
-    const startY = layout.isLandscape ? 112 : this.menuProfile.isCompact ? 156 : 170
-    const gapX = layout.isLandscape ? 90 : this.menuProfile.isCompact ? 90 : 98
-    const gapY = layout.isLandscape ? 102 : this.menuProfile.isCompact ? 110 : 120
+    const fruitSize = layout.isLandscape ? 46 : this.menuProfile.isCompact ? 50 : 54
+    const gapX = layout.isLandscape ? 84 : this.menuProfile.isCompact ? 88 : 94
+    const gapY = layout.isLandscape ? 94 : this.menuProfile.isCompact ? 100 : 108
+    const gridWidth = (cols - 1) * gapX
+    const startX = layout.cx - gridWidth / 2
+    const startY = this.menuProfile.titleY - (layout.isLandscape ? 36 : 54)
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const fruit = this.add.image(startX + col * gapX, startY + row * gapY, 'fruit')
-        fruit.setDisplaySize(54, 54)
+        fruit.setDisplaySize(fruitSize, fruitSize)
         fruit.setAlpha(0.18)
         fruit.setTint(BACKDROP_COLORS[(row + col) % BACKDROP_COLORS.length])
         fruit.setRotation((row - col) * 0.04)
@@ -243,14 +246,19 @@ export class MenuScene extends Phaser.Scene {
     const viewportHeight = ScaleManager.viewportHeight
     const isCompact = viewportWidth <= 360 || viewportHeight <= 700 || (layout.isLandscape && viewportHeight <= 500)
     const isTightLandscape = layout.isLandscape && viewportWidth <= 700
+    const height = this.cameras.main.height
+    const topBand = layout.isLandscape ? 104 : isCompact ? 120 : 136
+    const bottomBand = Math.min(layout.footerBottom - 26, height - (layout.isLandscape ? 46 : 56))
+    const freeHeight = Math.max(300, bottomBand - topBand)
+    const step = freeHeight / 5
 
-    const titleY = layout.isLandscape ? (isTightLandscape ? 148 : 160) : isCompact ? 160 : 176
-    const subtitleY = titleY + (layout.isLandscape ? 46 : 60)
-    const guideSpacing = layout.isLandscape ? (isTightLandscape ? 36 : 40) : isCompact ? 42 : 48
-    const guideY = subtitleY + (layout.isLandscape ? 38 : isCompact ? 44 : 48)
-    const playY = guideY + (layout.isLandscape ? 68 : isCompact ? 78 : 92)
-    const muteY = playY + (isCompact ? 66 : 78)
-    const footerY = muteY + (isCompact ? 72 : 84)
+    const titleY = topBand + step * 0.45
+    const subtitleY = topBand + step * 1.05
+    const guideY = topBand + step * 1.6
+    const playY = topBand + step * 2.45
+    const muteY = topBand + step * 3.25
+    const footerY = topBand + step * 4.15
+    const guideSpacing = layout.isLandscape ? (isTightLandscape ? 34 : 38) : isCompact ? 40 : 46
 
     return {
       isCompact,

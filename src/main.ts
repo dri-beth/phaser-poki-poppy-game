@@ -56,9 +56,9 @@ const config: Phaser.Types.Core.GameConfig = {
 
   // Performance hints
   render: {
-    antialias: false,     // Pixel-perfect, better perf on mobile
+    antialias: true,      // Smoother edges on scaled/vector-style UI
     pixelArt: false,
-    roundPixels: true
+    roundPixels: false
   },
 
   fps: {
